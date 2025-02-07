@@ -4,4 +4,11 @@ type Draw = {
   prevPoint: Point | null
 }
 
+type Draw2 = {
+  ctxPara: CanvasRenderingContext2D
+  currentPointPara: Point
+  prevPointPara: Point | null
+}
+
+
 type Point = { x: number; y: number }

@@ -24,8 +24,10 @@ export const useDraw = (onDraw: ({ ctx, currentPoint, prevPoint }: Draw) => void
       const currentPoint = computePointInCanvas(e)
 
       const ctx = canvasRef.current?.getContext('2d')
+      // 先檢查有沒有 ctx 是否存在, currentPoint 也是否存在
       if (!ctx || !currentPoint) return
 
+      // 再將參數 帶入 function params 
       onDraw({ ctx, currentPoint, prevPoint: prevPoint.current })
       prevPoint.current = currentPoint
     }

@@ -1,20 +1,21 @@
 'use client'
-
-import { FC, useState } from 'react'
+import { FC, useEffect, useState } from 'react'
 import { useDraw } from '../hooks/useDraw'
+import { useDraw2 } from '../hooks/useDraw2'
 import { ChromePicker } from 'react-color'
 
 interface pageProps {}
 
-const page: FC<pageProps> = ({}) => {
-  const [color, setColor] = useState<string>('#000')
-  const { canvasRef, onMouseDown, clear } = useDraw(drawLine)
+const Page: FC<pageProps> = ({}) => {
+  const [ isClient , setIsClient] = useState(false)
+  const [color, setColor] = useState('#000')
+  // const { canvasRef, onMouseDown, clear } = useDraw(drawLine)
+  const {canvasRef} = useDraw(drawLine)
 
-  function drawLine({ prevPoint, currentPoint, ctx }: Draw) {
+  function drawLine({ ctx ,prevPoint, currentPoint }: Draw) {
     const { x: currX, y: currY } = currentPoint
     const lineColor = color
     const lineWidth = 5
-
     let startPoint = prevPoint ?? currentPoint
     ctx.beginPath()
     ctx.lineWidth = lineWidth
@@ -29,23 +30,31 @@ const page: FC<pageProps> = ({}) => {
     ctx.fill()
   }
 
+  useEffect(()=>{
+    setIsClient(true) 
+  }, [])
+
   return (
-    <div className='w-screen h-screen bg-white flex justify-center items-center'>
+    <div
+      className='w-screen h-screen bg-white flex justify-center items-center'>
+
       <div className='flex flex-col gap-10 pr-10'>
-        <ChromePicker color={color} onChange={(e) => setColor(e.hex)} />
-        <button type='button' className='p-2 rounded-md border border-black' onClick={clear}>
+        {isClient && <ChromePicker color={color} onChange={(e) => setColor(e.hex)} /> } 
+        {/* <button type='button' className='p-2 rounded-md border border-black' onClick={clear}>
           Clear canvas
-        </button>
+        </button> */}
       </div>
-      <canvas
+      {/* <canvas
         ref={canvasRef}
         onMouseDown={onMouseDown}
         width={750}
         height={750}
         className='border border-black rounded-md'
-      />
+      /> */}
+
+      <canvas ref={canvasRef} width={750} height={750} className='border border-red-700 rounded-lg'></canvas>
     </div>
   )
 }
 
-export default page
+export default Page
