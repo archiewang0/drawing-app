@@ -18,7 +18,11 @@
     "react": "18.2.0",
     "react-color": "^2.19.3",
     "react-dom": "18.2.0",
-    "typescript": "4.8.4"
+    "typescript": "4.8.4",
+
+    "roughjs": "^4.5.2",
+    "perfect-freehand": "^1.2.0"
+
   },
   "devDependencies": {
     "@types/react-color": "^3.0.6",
