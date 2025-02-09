@@ -1,538 +1,716 @@
 
-import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
+'use client'
+import React, { FocusEvent, MouseEvent, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { RoughGenerator } from "roughjs/bin/generator";
 import { RoughCanvas } from "roughjs/bin/canvas";
 import getStroke from "perfect-freehand";
+import { Drawable } from "roughjs/bin/core";
 
 const generator = new RoughGenerator()
 
-type createElementResult = RoughGenerator | {
-  id: number , x1: number ,y1: number , x2: number , y2: number , type:
+interface DefaultElement  {
+    id: number , type: ToolEnum , 
 }
-const createElement = (id:number, x1, y1, x2, y2, type): createElementResult => {
-  switch (type) {
-    case "line":
-    case "rectangle":
-      const roughElement =
-        type === "line"
-          ? generator.line(x1, y1, x2, y2)
-          : generator.rectangle(x1, y1, x2 - x1, y2 - y1);
-      return { id, x1, y1, x2, y2, type, roughElement };
-    case "pencil":
-      return { id, type, points: [{ x: x1, y: y1 }] };
-    case "text":
-      return { id, type, x1, y1, x2, y2, text: "" };
-    default:
-      throw new Error(`Type not recognised: ${type}`);
-  }
-};
 
-const nearPoint = (x, y, x1, y1, name) => {
-  return Math.abs(x - x1) < 5 && Math.abs(y - y1) < 5 ? name : null;
-};
+interface CreateLineAndRectElment extends DefaultElement ,PositionXYXY  {
+    drawableEl: Drawable
+}
 
-const onLine = (x1, y1, x2, y2, x, y, maxDistance = 1) => {
-  const a = { x: x1, y: y1 };
-  const b = { x: x2, y: y2 };
-  const c = { x, y };
-  const offset = distance(a, b) - (distance(a, c) + distance(b, c));
-  return Math.abs(offset) < maxDistance ? "inside" : null;
-};
+interface PositionXYXY {
+    x1: number ,y1: number , x2: number , y2: number
+}
 
-const positionWithinElement = (x, y, element) => {
-  const { type, x1, x2, y1, y2 } = element;
-  switch (type) {
-    case "line":
-      const on = onLine(x1, y1, x2, y2, x, y);
-      const start = nearPoint(x, y, x1, y1, "start");
-      const end = nearPoint(x, y, x2, y2, "end");
-      return start || end || on;
-    case "rectangle":
-      const topLeft = nearPoint(x, y, x1, y1, "tl");
-      const topRight = nearPoint(x, y, x2, y1, "tr");
-      const bottomLeft = nearPoint(x, y, x1, y2, "bl");
-      const bottomRight = nearPoint(x, y, x2, y2, "br");
-      const inside = x >= x1 && x <= x2 && y >= y1 && y <= y2 ? "inside" : null;
-      return topLeft || topRight || bottomLeft || bottomRight || inside;
-    case "pencil":
-      const betweenAnyPoint = element.points.some((point, index) => {
-        const nextPoint = element.points[index + 1];
-        if (!nextPoint) return false;
-        return onLine(point.x, point.y, nextPoint.x, nextPoint.y, x, y, 5) != null;
-      });
-      return betweenAnyPoint ? "inside" : null;
-    case "text":
-      return x >= x1 && x <= x2 && y >= y1 && y <= y2 ? "inside" : null;
-    default:
-      throw new Error(`Type not recognised: ${type}`);
-  }
-};
+interface PencilPoint extends PositionXY{}
 
-const distance = (a, b) => Math.sqrt(Math.pow(a.x - b.x, 2) + Math.pow(a.y - b.y, 2));
+interface PositionXY{
+    x:number, y:number
+}
 
-const getElementAtPosition = (x, y, elements) => {
-  return elements
-    .map(element => ({ ...element, position: positionWithinElement(x, y, element) }))
-    .find(element => element.position !== null);
-};
+interface CreatePencilElment extends DefaultElement {
+    points: PencilPoint[]
+}
 
-const adjustElementCoordinates = element => {
-  const { type, x1, y1, x2, y2 } = element;
-  if (type === "rectangle") {
-    const minX = Math.min(x1, x2);
-    const maxX = Math.max(x1, x2);
-    const minY = Math.min(y1, y2);
-    const maxY = Math.max(y1, y2);
-    return { x1: minX, y1: minY, x2: maxX, y2: maxY };
-  } else {
-    if (x1 < x2 || (x1 === x2 && y1 < y2)) {
-      return { x1, y1, x2, y2 };
-    } else {
-      return { x1: x2, y1: y2, x2: x1, y2: y1 };
+interface CreateTextElment extends DefaultElement , PositionXYXY{
+    text: string
+}
+
+
+const createElement = (
+    id:number, 
+    x1:number, 
+    y1:number, 
+    x2:number, 
+    y2:number, 
+    type: ToolEnum
+): I_Selected_Element => {
+    switch (type) {
+        case ToolEnum.line:
+            const lineEl = generator.line(x1, y1, x2, y2) 
+            return { id, x1, y1, x2, y2, type, drawableEl: lineEl };
+        case ToolEnum.rectangle:
+            const rectEl  = generator.rectangle(x1, y1, x2 - x1, y2 - y1) 
+            return { id, x1, y1, x2, y2, type, drawableEl: rectEl };
+        case ToolEnum.pencil:
+            return { id, type, points: [{ x: x1, y: y1 }] };
+        case ToolEnum.text:
+            return { id, type, x1, y1, x2, y2, text: "" };
+        default:
+            throw new Error(`Type not recognised: ${type}`);
     }
-  }
 };
 
-const cursorForPosition = position => {
-  switch (position) {
-    case "tl":
-    case "br":
-    case "start":
-    case "end":
-      return "nwse-resize";
-    case "tr":
-    case "bl":
-      return "nesw-resize";
-    default:
-      return "move";
-  }
+enum PointPositionEnums {
+    start = 'start',
+    end = 'end',
+    tl = 'tl',
+    tr = 'tr',
+    bl = "bl",
+    br = "br",
+}
+
+interface updateElementOption {
+    text:string
+}
+
+
+
+const nearPoint = (x:number, y:number, x1:number, y1:number, name: PointPositionEnums): PointPositionEnums | null  => {
+    return Math.abs(x - x1) < 5 && Math.abs(y - y1) < 5 ? name : null;
 };
 
-const resizedCoordinates = (clientX, clientY, position, coordinates) => {
-  const { x1, y1, x2, y2 } = coordinates;
-  switch (position) {
-    case "tl":
-    case "start":
-      return { x1: clientX, y1: clientY, x2, y2 };
-    case "tr":
-      return { x1, y1: clientY, x2: clientX, y2 };
-    case "bl":
-      return { x1: clientX, y1, x2, y2: clientY };
-    case "br":
-    case "end":
-      return { x1, y1, x2: clientX, y2: clientY };
-    default:
-      return null; //should not really get here...
-  }
+const onLine = (x1:number, y1:number, x2:number, y2:number, x:number, y:number, maxDistance:number = 1) => {
+    const a:Point = { x: x1, y: y1 };
+    const b:Point = { x: x2, y: y2 };
+    const c:Point = { x, y };
+    const offset = distance(a, b) - (distance(a, c) + distance(b, c));
+    return Math.abs(offset) < maxDistance ? "inside" : null;
 };
 
-const useHistory = initialState => {
-  const [index, setIndex] = useState<number>(0);
-  const [history, setHistory] = useState([initialState]);
-
-  const setState = ( action: ()=>void , overwrite:boolean = false) => {
-    const newState = typeof action === "function" ? action(history[index]) : action;
-    
-    if (overwrite) {
-      const historyCopy = [...history];
-      historyCopy[index] = newState;
-      setHistory(historyCopy);
-    } else {
-      const updatedState = [...history].slice(0, index + 1);
-      setHistory([...updatedState, newState]);
-      setIndex(prevState => prevState + 1);
+const positionWithinElement = (x:number, y:number, element: I_Selected_Element): null | "inside" |  PointPositionEnums => {
+    const { type, x1, x2, y1, y2  , points} = element;
+    if ( !x1 || !y1 || !x2 || !y2 || !points) {
+        alert('positionWithinElement reqire error')
+        return null
     }
-  };
 
-  const undo = () => index > 0 && setIndex(prevState => prevState - 1);
-  const redo = () => index < history.length - 1 && setIndex(prevState => prevState + 1);
-
-  return [history[index], setState, undo, redo];
+    switch (type) {
+        case ToolEnum.line:
+            const on = onLine(x1, y1, x2, y2, x, y);
+            const start = nearPoint(x, y, x1, y1, PointPositionEnums.start);
+            const end = nearPoint(x, y, x2, y2, PointPositionEnums.end);
+            return start || end || on;
+        case ToolEnum.rectangle:
+            const topLeft = nearPoint(x, y, x1, y1, PointPositionEnums.tl);
+            const topRight = nearPoint(x, y, x2, y1, PointPositionEnums.tr);
+            const bottomLeft = nearPoint(x, y, x1, y2, PointPositionEnums.bl);
+            const bottomRight = nearPoint(x, y, x2, y2, PointPositionEnums.br);
+            const inside = x >= x1 && x <= x2 && y >= y1 && y <= y2 ? "inside" : null;
+            return topLeft || topRight || bottomLeft || bottomRight || inside;
+        case ToolEnum.pencil:
+            const betweenAnyPoint = points.some((point ,index: number) => {
+                const nextPoint = points[index + 1];
+                if (!nextPoint) return false;
+                return onLine(point.x, point.y, nextPoint.x, nextPoint.y, x, y, 5) != null;
+            });
+            return betweenAnyPoint ? "inside" : null;
+        case ToolEnum.text:
+            return x >= x1 && x <= x2 && y >= y1 && y <= y2 ? "inside" : null;
+        default:
+            throw new Error(`Type not recognised: ${type}`);
+    }
 };
 
-const getSvgPathFromStroke = stroke => {
-  if (!stroke.length) return "";
+const distance = (a:Point, b:Point) => Math.sqrt(Math.pow(a.x - b.x, 2) + Math.pow(a.y - b.y, 2));
 
-  const d = stroke.reduce(
-    (acc, [x0, y0], i, arr) => {
-      const [x1, y1] = arr[(i + 1) % arr.length];
-      acc.push(x0, y0, (x0 + x1) / 2, (y0 + y1) / 2);
-      return acc;
-    },
-    ["M", ...stroke[0], "Q"]
-  );
-
-  d.push("Z");
-  return d.join(" ");
+const getElementAtPosition = (x:number, y:number, elements:I_Selected_Element[]) => {
+    return elements
+        .map(element => ({ ...element, position: positionWithinElement(x, y, element) }))
+        .find(element => element.position !== null);
 };
 
-const drawElement = (roughCanvas, context, element) => {
-  switch (element.type) {
-    case "line":
-    case "rectangle":
-      roughCanvas.draw(element.roughElement);
-      break;
-    case "pencil":
-      const stroke = getSvgPathFromStroke(getStroke(element.points));
-      context.fill(new Path2D(stroke));
-      break;
-    case "text":
-      context.textBaseline = "top";
-      context.font = "24px sans-serif";
-      context.fillText(element.text, element.x1, element.y1);
-      break;
-    default:
-      throw new Error(`Type not recognised: ${element.type}`);
-  }
+const adjustElementCoordinates = (element:I_Selected_Element) => {
+    const { type, x1, y1, x2, y2 } = element;
+    if (!x1 || !y1 || !x2 || !y2) return
+    if (type === ToolEnum.rectangle) {
+        const minX = Math.min(x1, x2);
+        const maxX = Math.max(x1, x2);
+        const minY = Math.min(y1, y2);
+        const maxY = Math.max(y1, y2);
+        return { x1: minX, y1: minY, x2: maxX, y2: maxY };
+    } else {
+        if (x1 < x2 || (x1 === x2 && y1 < y2)) {
+            return { x1, y1, x2, y2 };
+        } else {
+            return { x1: x2, y1: y2, x2: x1, y2: y1 };
+        }
+    }
 };
 
-const adjustmentRequired = type => ["line", "rectangle"].includes(type);
+enum CursorForPositionEnum {
+    nwseResize = 'nwse-resize',
+    neswResize = 'nesw-resize',
+    move = 'move'
+}
+
+type T_Position = PointPositionEnums | "inside" | null
+
+const cursorForPosition = (position: T_Position ): CursorForPositionEnum => {
+    switch (position) {
+        case PointPositionEnums.tl:
+        case PointPositionEnums.br:
+        case PointPositionEnums.start:
+        case PointPositionEnums.end:
+            return CursorForPositionEnum.nwseResize;
+        case PointPositionEnums.tr:
+        case PointPositionEnums.bl:
+            return CursorForPositionEnum.neswResize;
+        default:
+            return CursorForPositionEnum.move;
+    }
+};
+
+const resizedCoordinates = (clientX:number, clientY:number, position: T_Position, coordinates: PositionXYXY ): PositionXYXY | null => {
+    const { x1, y1, x2, y2 } = coordinates;
+    switch (position) {
+        case PointPositionEnums.tl:
+        case PointPositionEnums.start:
+            return { x1: clientX, y1: clientY, x2, y2 };
+        case PointPositionEnums.tr:
+            return { x1, y1: clientY, x2: clientX, y2 };
+        case PointPositionEnums.bl:
+            return { x1: clientX, y1, x2, y2: clientY };
+        case PointPositionEnums.br:
+        case PointPositionEnums.end:
+            return { x1, y1, x2: clientX, y2: clientY };
+        default:
+            return null; //should not really get here...
+    }
+};
+
+type HistoryAction<T> = ((state: T[]) => T[]) | T[]
+
+const useHistory = <T extends unknown>(initialState: T[]): [
+    history: T[],
+    setState: (action: HistoryAction<T> , overwrite?: boolean) => void,
+    undo: ()=>void,
+    redo: ()=>void
+] => {
+    const [index, setIndex] = useState<number>(0);
+    const [history, setHistory] = useState<T[][]>([initialState]);
+
+    // 寫入State , 可以帶入()=>T[] 也可以直接帶入值
+    const setState = ( 
+            action: ( (param: T[])=> T[] ) | T[], 
+            overwrite:boolean = false
+        ) => {
+            const newState = typeof action === "function" ? action(history[index]) : action;
+            
+            if (overwrite) {
+                const historyCopy = [...history];
+                historyCopy[index] = newState;
+                setHistory(historyCopy);
+            } else {
+                const updatedState = [...history].slice(0, index + 1);
+                setHistory([...updatedState, newState]);
+                setIndex(prevState => prevState + 1);
+            }
+    };
+
+    const undo:()=>void = () => index > 0 && setIndex(prevState => prevState - 1);
+    const redo:()=>void = () => index < history.length - 1 && setIndex(prevState => prevState + 1);
+
+    // 目前element , 寫入element , 回去上個element , 回覆上個element
+    return [history[index], setState, undo, redo];
+};
+
+type T_Stroke = number[] | {x: number; y: number; pressure?: number; }
+type T_Stroke_Arr = T_Stroke[]
+
+// 這個不知道怎麼處理?
+// const getSvgPathFromStroke = (
+//         stroke: T_Stroke_Arr[] 
+//     ) => {
+//     if (!stroke.length) return "";
+//     const d = stroke[0].reduce(
+//         (acc: (string|number)[], point: T_Stroke, i: number, arr: T_Stroke[]) => {
+//             const x0 = Array.isArray(point) ? point[0] : point.x;
+//             const y0 = Array.isArray(point) ? point[1] : point.y;
+            
+//             const nextPoint = arr[(i + 1) % arr.length];
+//             const x1 = Array.isArray(nextPoint) ? nextPoint[0] : nextPoint.x;
+//             const y1 = Array.isArray(nextPoint) ? nextPoint[1] : nextPoint.y;
+            
+//             acc.push(x0, y0, (x0 + x1) / 2, (y0 + y1) / 2);
+//             return acc;
+//         },
+//         ["M", ...stroke[0], "Q"]
+//     );
+
+//     d.push("Z");
+//     return d.join(" ");
+// };
+
+
+
+const drawElement = (roughCanvas: RoughCanvas, context: CanvasRenderingContext2D, element: I_Selected_Element) => {
+    const { roughElement , points , text , x1 , y1 , type} = element
+    if (!roughElement || !points || !text || !x1 || !y1 ) return 
+    switch (type) {
+        case ToolEnum.line:
+        case ToolEnum.rectangle:
+            roughCanvas.draw(roughElement);
+            break;
+        case ToolEnum.pencil:
+            const stroke = "M Q Z";
+            // const stroke = getSvgPathFromStroke(getStroke(points));
+            context.fill(new Path2D(stroke));
+            break;
+        case ToolEnum.text:
+            context.textBaseline = "top";
+            context.font = "24px sans-serif";
+            context.fillText(text, x1, y1);
+            break;
+        default:
+            throw new Error(`Type not recognised: ${type}`);
+    }
+};
+
+const adjustmentRequired = (type:ToolEnum) => ["line", "rectangle"].includes(type);
 
 const usePressedKeys = () => {
-  const [pressedKeys, setPressedKeys] = useState(new Set());
+    const [pressedKeys, setPressedKeys] = useState(new Set<string>());
 
-  useEffect(() => {
-    const handleKeyDown = event => {
-      setPressedKeys(prevKeys => new Set(prevKeys).add(event.key));
-    };
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            setPressedKeys( pre => new Set(pre).add(e.key));
+        };
 
-    const handleKeyUp = event => {
-      setPressedKeys(prevKeys => {
-        const updatedKeys = new Set(prevKeys);
-        updatedKeys.delete(event.key);
-        return updatedKeys;
-      });
-    };
+        const handleKeyUp = (e:KeyboardEvent) => {
+            setPressedKeys( pre => {
+                const updatedKeys = new Set(pre);
+                updatedKeys.delete(e.key);
+                return updatedKeys;
+            });
+        };
 
-    window.addEventListener("keydown", handleKeyDown);
-    window.addEventListener("keyup", handleKeyUp);
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-      window.removeEventListener("keyup", handleKeyUp);
-    };
-  }, []);
+        window.addEventListener("keydown", handleKeyDown);
+        window.addEventListener("keyup", handleKeyUp);
+        return () => {
+            window.removeEventListener("keydown", handleKeyDown);
+            window.removeEventListener("keyup", handleKeyUp);
+        };
+    }, []);
 
-  return pressedKeys;
+    return pressedKeys;
 };
 
 enum ToolEnum {
-  rectangle= 'rectangle',
-  selection = 'selection',
-  line = 'line',
-  text = 'text',
-  pencil = 'pencil'
+    rectangle= 'rectangle',
+    selection = 'selection',
+    line = 'line',
+    text = 'text',
+    pencil = 'pencil'
 }
 
+enum ActionEnum{
+    writing = 'writing',
+    none = 'none',
+    panning = 'panning',
+    moving = 'moving',
+    resizing = 'resizing',
+    text = 'text',
+    drawing = 'drawing',
+}
+
+interface I_Selected_Element{
+    id: number
+    type: ToolEnum,
+
+    x1?: number,
+    y1?: number,
+    x2?: number,
+    y2?: number,
+    text?: string,
+
+    offsetX?: number,
+    offsetY?: number,
+
+    xOffsets?: number[],
+    yOffsets?: number[],
+
+    position?: T_Position
+
+    points?: PositionXY[]
+
+    drawableEl?: Drawable
+    roughElement?: Drawable
+}
+
+// interface I_Point {
+//     x: number
+//     y: number
+//     pressure?: number
+// }
+
+// interface I_Draw_Element{
+//     type: ToolEnum
+//     roughElement: Drawable
+//     points: I_Point[]
+//     text: string
+//     x1: number
+//     y1: number
+//     x2: number
+//     y2: number
+// }
+
 const App = () => {
-  const [ elements, setElements, undo, redo] = useHistory([]);
+    const [ elements, setElements, undo, redo] = useHistory<I_Selected_Element>([]);
 
-  const [action, setAction] = useState("none");
-  const [tool, setTool] = useState<ToolEnum>(ToolEnum.rectangle);
+    const [action, setAction] = useState<ActionEnum>(ActionEnum.none);
+    const [tool, setTool] = useState<ToolEnum>(ToolEnum.rectangle);
 
-  const [selectedElement, setSelectedElement] = useState(null);
-  const [panOffset, setPanOffset] = React.useState({ x: 0, y: 0 });
-  const [startPanMousePosition, setStartPanMousePosition] = React.useState({ x: 0, y: 0 });
-  const textAreaRef = useRef();
-  const pressedKeys = usePressedKeys();
+    const [selectedElement, setSelectedElement] = useState<I_Selected_Element | null>(null);
+    const [panOffset, setPanOffset] = React.useState<PositionXY>({ x: 0, y: 0 });
+    const [startPanMousePosition, setStartPanMousePosition] = React.useState<PositionXY>({ x: 0, y: 0 });
+    const pressedKeys = usePressedKeys();
+    
+    const textAreaRef = useRef<HTMLTextAreaElement>(null);
+    const [textAreaVal , setTextAreaVal] = useState("")
+    const canvasRef = useRef<HTMLCanvasElement>(null)
 
-  const canvasRef = useRef<HTMLCanvasElement>(null)
+    const [loaded, setLoaded] = useState(false)
 
-  // 
-  useEffect(() => {
-    const canvas = canvasRef.current
-    if (!canvas) return
+    useEffect(() => {
+        const canvas = canvasRef.current
+        if (!canvas) return
 
-    const context = canvas.getContext("2d");
-    if (!context) return
-
-    const roughCanvas = new RoughCanvas(canvas);
-
-    context.clearRect(0, 0, canvas.width, canvas.height);
-
-    context.save();
-    context.translate(panOffset.x, panOffset.y);
-
-    elements.forEach(element => {
-      if (action === "writing" && selectedElement.id === element.id) return;
-      drawElement(roughCanvas, context, element);
-    });
-    context.restore();
-  }, [elements, action, selectedElement, panOffset]);
-
-  useEffect(() => {
-    const undoRedoFunction = event => {
-      if ((event.metaKey || event.ctrlKey) && event.key === "z") {
-        if (event.shiftKey) {
-          redo();
-        } else {
-          undo();
-        }
-      }
-    };
-
-    document.addEventListener("keydown", undoRedoFunction);
-    return () => {
-      document.removeEventListener("keydown", undoRedoFunction);
-    };
-  }, [undo, redo]);
-
-  useEffect(() => {
-    const panFunction = event => {
-      setPanOffset(prevState => ({
-        x: prevState.x - event.deltaX,
-        y: prevState.y - event.deltaY,
-      }));
-    };
-
-    document.addEventListener("wheel", panFunction);
-    return () => {
-      document.removeEventListener("wheel", panFunction);
-    };
-  }, []);
-
-  useEffect(() => {
-    const textArea = textAreaRef.current;
-    if (action === "writing") {
-      setTimeout(() => {
-        textArea.focus();
-        textArea.value = selectedElement.text;
-      }, 0);
-    }
-  }, [action, selectedElement]);
-
-  const updateElement = (id, x1, y1, x2, y2, type, options) => {
-    const elementsCopy = [...elements];
-
-    switch (type) {
-      case "line":
-      case "rectangle":
-        elementsCopy[id] = createElement(id, x1, y1, x2, y2, type);
-        break;
-      case "pencil":
-        elementsCopy[id].points = [...elementsCopy[id].points, { x: x2, y: y2 }];
-        break;
-      case "text":
-        const canvasEl =  canvasRef.current
-        if ( !canvasEl) return
-        const context = canvasEl.getContext("2d")
+        const context = canvas.getContext("2d");
         if (!context) return
-        const textWidth = context.measureText(options.text).width;
-        const textHeight = 24;
+
+
+        const roughCanvas = new RoughCanvas(canvas);
+
+        context.clearRect(0, 0, canvas.width, canvas.height);
+
+        context.save();
+        context.translate(panOffset.x, panOffset.y);
+        console.log( 'run action: ' , action)
+
+        if (!selectedElement) return;
+        elements.forEach(element => {
+            console.log('run elements render drawElement')
+            if (action === ActionEnum.writing && selectedElement.id === element.id) return;
+            drawElement(roughCanvas, context, element);
+        });
+        context.restore();
+    }, [elements, action, selectedElement, panOffset]);
+
+    useEffect(() => {
+        const undoRedoFunction = (event:KeyboardEvent) => {
+            if ((event.metaKey || event.ctrlKey) && event.key === "z") {
+                if (event.shiftKey) {
+                    redo();
+                } else {
+                    undo();
+                }
+            }
+        };
+
+        document.addEventListener("keydown", undoRedoFunction);
+        return () => {
+            document.removeEventListener("keydown", undoRedoFunction);
+        };
+    }, [undo, redo]);
+
+    useEffect(() => {
+        setLoaded(true)
+        const panFunction = (event: WheelEvent) => {
+            setPanOffset(prevState => ({
+                x: prevState.x - event.deltaX,
+                y: prevState.y - event.deltaY,
+            }));
+        };
+        document.addEventListener("wheel", panFunction);
         
-        elementsCopy[id] = {
-          ...createElement(id, x1, y1, x1 + textWidth, y1 + textHeight, type),
-          text: options.text,
+        return () => {
+            document.removeEventListener("wheel", panFunction);
         };
-        break;
-      default:
-        throw new Error(`Type not recognised: ${type}`);
-    }
+    }, []);
 
-    setElements(elementsCopy, true);
-  };
+    useEffect(() => {
+        const textArea = textAreaRef.current as HTMLTextAreaElement;
+        if (!textArea) return;
+        if (!selectedElement) return;
 
-  const getMouseCoordinates = event => {
-    const clientX = event.clientX - panOffset.x;
-    const clientY = event.clientY - panOffset.y;
-    return { clientX, clientY };
-  };
-
-  const handleMouseDown = event => {
-    if (action === "writing") return;
-
-    const { clientX, clientY } = getMouseCoordinates(event);
-
-    if (event.button === 1 || pressedKeys.has(" ")) {
-      setAction("panning");
-      setStartPanMousePosition({ x: clientX, y: clientY });
-      return;
-    }
-
-    if (tool === "selection") {
-      const element = getElementAtPosition(clientX, clientY, elements);
-      if (element) {
-        if (element.type === "pencil") {
-          const xOffsets = element.points.map(point => clientX - point.x);
-          const yOffsets = element.points.map(point => clientY - point.y);
-          setSelectedElement({ ...element, xOffsets, yOffsets });
-        } else {
-          const offsetX = clientX - element.x1;
-          const offsetY = clientY - element.y1;
-          setSelectedElement({ ...element, offsetX, offsetY });
+        if (action === ActionEnum.writing) {
+            setTimeout(() => {
+                textArea.focus();
+                // textArea.value = selectedElement.text;
+                setTextAreaVal( selectedElement.text! )
+            }, 0);
         }
-        setElements(prevState => prevState);
+    }, [action, selectedElement]);
 
-        if (element.position === "inside") {
-          setAction("moving");
-        } else {
-          setAction("resizing");
-        }
-      }
-    } else {
-      const id = elements.length;
-      const element = createElement(id, clientX, clientY, clientX, clientY, tool);
-      setElements(prevState => [...prevState, element]);
-      setSelectedElement(element);
-
-      setAction(tool === "text" ? "writing" : "drawing");
-    }
-  };
-
-  const handleMouseMove = event => {
-    const { clientX, clientY } = getMouseCoordinates(event);
-
-    if (action === "panning") {
-      const deltaX = clientX - startPanMousePosition.x;
-      const deltaY = clientY - startPanMousePosition.y;
-      setPanOffset({
-        x: panOffset.x + deltaX,
-        y: panOffset.y + deltaY,
-      });
-      return;
-    }
-
-    if (tool === "selection") {
-      const element = getElementAtPosition(clientX, clientY, elements);
-      event.target.style.cursor = element ? cursorForPosition(element.position) : "default";
-    }
-
-    if (action === "drawing") {
-      const index = elements.length - 1;
-      const { x1, y1 } = elements[index];
-      updateElement(index, x1, y1, clientX, clientY, tool);
-    } else if (action === "moving") {
-      if (selectedElement.type === "pencil") {
-        const newPoints = selectedElement.points.map((_, index) => ({
-          x: clientX - selectedElement.xOffsets[index],
-          y: clientY - selectedElement.yOffsets[index],
-        }));
+    const updateElement = (id:number, x1:number, y1:number,  x2:number|null, y2:number|null, type:ToolEnum, options?: updateElementOption | null) => {
         const elementsCopy = [...elements];
-        elementsCopy[selectedElement.id] = {
-          ...elementsCopy[selectedElement.id],
-          points: newPoints,
-        };
+
+        switch (type) {
+            case ToolEnum.line:
+            case ToolEnum.rectangle:
+                if (!x2 || !y2) return alert('x2 || y2 undefind!')
+                elementsCopy[id] = createElement(id, x1, y1, x2, y2, type);
+                break;
+            case ToolEnum.pencil:
+                const { points } = elementsCopy[id]
+                if (!points) return alert('points undefined!')
+                if (!x2 || y2) return alert('x2 or y2 undefined!')
+                elementsCopy[id].points = [...points, { x: x2, y: y2 } as PositionXY];
+                break;
+            case ToolEnum.text:
+                const canvasEl =  canvasRef.current
+                if ( !canvasEl) return
+                const context = canvasEl.getContext("2d")
+                if (!context) return
+                if (!options) return alert('options error!')
+                const textWidth = context.measureText(options.text).width;
+                const textHeight = 24;
+                
+                elementsCopy[id] = {
+                    ...createElement(id, x1, y1, x1 + textWidth, y1 + textHeight, type),
+                    text: options.text,
+                };
+                break;
+            default:
+                throw new Error(`Type not recognised: ${type}`);
+        }
+
         setElements(elementsCopy, true);
-      } else {
-        const { id, x1, x2, y1, y2, type, offsetX, offsetY } = selectedElement;
-        const width = x2 - x1;
-        const height = y2 - y1;
-        const newX1 = clientX - offsetX;
-        const newY1 = clientY - offsetY;
-        const options = type === "text" ? { text: selectedElement.text } : {};
-        updateElement(id, newX1, newY1, newX1 + width, newY1 + height, type, options);
-      }
-    } else if (action === "resizing") {
-      const { id, type, position, ...coordinates } = selectedElement;
-      const { x1, y1, x2, y2 } = resizedCoordinates(clientX, clientY, position, coordinates);
-      updateElement(id, x1, y1, x2, y2, type);
-    }
-  };
+    };
 
-  const handleMouseUp = event => {
-    const { clientX, clientY } = getMouseCoordinates(event);
-    if (selectedElement) {
-      if (
-        selectedElement.type === "text" &&
-        clientX - selectedElement.offsetX === selectedElement.x1 &&
-        clientY - selectedElement.offsetY === selectedElement.y1
-      ) {
-        setAction("writing");
-        return;
-      }
+    const getMouseCoordinates = (e:MouseEvent) => {
+        const clientX = e.clientX - panOffset.x;
+        const clientY = e.clientY - panOffset.y;
+        return { clientX, clientY };
+    };
 
-      const index = selectedElement.id;
-      const { id, type } = elements[index];
-      if ((action === "drawing" || action === "resizing") && adjustmentRequired(type)) {
-        const { x1, y1, x2, y2 } = adjustElementCoordinates(elements[index]);
-        updateElement(id, x1, y1, x2, y2, type);
-      }
-    }
+    const handleMouseDown = (e: MouseEvent) => {
+        if (action === ActionEnum.writing) return;
 
-    if (action === "writing") return;
+        const { clientX, clientY } = getMouseCoordinates(e);
+        
+        if (e.button === 1 || pressedKeys.has(" ")) {
+            setAction(ActionEnum.panning);
+            setStartPanMousePosition({ x: clientX, y: clientY });
+            return;
+        }
 
-    setAction("none");
-    setSelectedElement(null);
-  };
+        console.log('check e: ' , e)
+        console.log('check tool: ' ,tool)
 
-  const handleBlur = event => {
-    const { id, x1, y1, type } = selectedElement;
-    setAction("none");
-    setSelectedElement(null);
-    updateElement(id, x1, y1, null, null, type, { text: event.target.value });
-  };
 
-  return (
-    <div>
-      <div style={{ position: "fixed", zIndex: 2 }}>
-        <input
-          type="radio"
-          id="selection"
-          checked={tool === ToolEnum.selection}
-          onChange={() => setTool("selection")}
-        />
-        <label htmlFor="selection">Selection</label>
-        <input type="radio" id="line" checked={tool === "line"} onChange={() => setTool("line")} />
-        <label htmlFor="line">Line</label>
-        <input
-          type="radio"
-          id="rectangle"
-          checked={tool === ToolEnum.rectangle}
-          onChange={() => setTool("rectangle")}
-        />
-        <label htmlFor="rectangle">Rectangle</label>
-        <input
-          type="radio"
-          id="pencil"
-          checked={tool === ToolEnum.pencil}
-          onChange={() => setTool("pencil")}
-        />
-        <label htmlFor="pencil">Pencil</label>
-        <input 
-          type="radio" 
-          id="text" 
-          checked={tool === ToolEnum.text} 
-          onChange={() => setTool("text")} />
-        <label htmlFor="text">Text</label>
-      </div>
-      <div style={{ position: "fixed", zIndex: 2, bottom: 0, padding: 10 }}>
-        <button onClick={undo}>Undo</button>
-        <button onClick={redo}>Redo</button>
-      </div>
-      {action === "writing" ? (
-        <textarea
-          ref={textAreaRef}
-          onBlur={handleBlur}
-          style={{
-            position: "fixed",
-            top: selectedElement.y1 - 2 + panOffset.y,
-            left: selectedElement.x1 + panOffset.x,
-            font: "24px sans-serif",
-            margin: 0,
-            padding: 0,
-            border: 0,
-            outline: 0,
-            resize: "auto",
-            overflow: "hidden",
-            whiteSpace: "pre",
-            background: "transparent",
-            zIndex: 2,
-          }}
-        />
-      ) : null}
-      <canvas
-        ref={canvasRef}
-        id="canvas"
-        width={window.innerWidth}
-        height={window.innerHeight}
-        onMouseDown={handleMouseDown}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
-        style={{ position: "absolute", zIndex: 1 }}
-      >
-        Canvas
-      </canvas>
-    </div>
-  );
+        if (tool === ToolEnum.selection) {
+            const element = getElementAtPosition(clientX, clientY, elements);
+            if (!element) return alert('handleMouseDown element reqire')
+            const {points , x1 , y1} = element
+            if (element.type === "pencil") {
+                if (!points) return alert('handleMouseDown elelement points reqire')
+                const xOffsets = points.map(point => clientX - point.x);
+                const yOffsets = points.map(point => clientY - point.y);
+                setSelectedElement({ ...element, xOffsets, yOffsets });
+            } else {
+                if (!x1 || !y1) return alert('handleMouseDown elelement x1 , y1 reqire')
+                const offsetX = clientX - x1;
+                const offsetY = clientY - y1;
+                setSelectedElement({ ...element, offsetX, offsetY });
+            }
+            setElements(prevState => prevState);
+
+            if (element.position === "inside") {
+                setAction(ActionEnum.moving);
+            } else {
+                setAction(ActionEnum.resizing);
+            }
+        } else {
+            const id = elements.length;
+            const element = createElement(id, clientX, clientY, clientX, clientY, tool);
+            console.log(' handleMouseDown: ' , element)
+            setElements(prevState => [...prevState, element]);
+            setSelectedElement(element);
+            setAction(tool === ToolEnum.text ? ActionEnum.writing : ActionEnum.drawing);
+        }
+    };
+
+    const handleMouseMove = (event:MouseEvent) => {
+        const { clientX, clientY } = getMouseCoordinates(event);
+
+        if (action === ActionEnum.panning) {
+            const deltaX = clientX - startPanMousePosition.x;
+            const deltaY = clientY - startPanMousePosition.y;
+            setPanOffset({
+                x: panOffset.x + deltaX,
+                y: panOffset.y + deltaY,
+            });
+            return;
+        }
+
+        if (tool === ToolEnum.selection) {
+            const element = getElementAtPosition(clientX, clientY, elements);
+            (event.target as HTMLCanvasElement).style.cursor = element ? cursorForPosition(element.position!) : "default";
+        }
+
+        if (action === ActionEnum.drawing ) {
+            const index = elements.length - 1;
+            const { x1, y1 } = elements[index];
+            if( !x1 || !y1) return alert("handleMouseMove x1 y1 reqire")
+            updateElement(index, x1, y1, clientX, clientY, tool);
+        } else if (action === ActionEnum.moving) {
+            if (!selectedElement) return  alert("handleMouseMove selectedElement reqire")
+            if (selectedElement.type === ToolEnum.pencil) {
+                const {points , xOffsets , yOffsets} = selectedElement
+                if( !points || !yOffsets || !xOffsets ) return alert("handleMouseMove points , xOffsets , yOffsets reqire")
+                const newPoints = points.map(( _ , index:number) => ({
+                    x: clientX - xOffsets[index],
+                    y: clientY - yOffsets[index],
+                }));
+                const elementsCopy = [...elements];
+                elementsCopy[selectedElement.id] = {
+                    ...elementsCopy[selectedElement.id],
+                    points: newPoints,
+                };
+                setElements(elementsCopy, true);
+            } else {
+                const { id, x1, x2, y1, y2, type, offsetX, offsetY } = selectedElement;
+                if ( !x1 || !x2 || !y1 || !y2 || !offsetX || !offsetY) return alert("handleMouseMove x2 , x1 ,y1 ,y2 ,offsetX , offsetY reqire")
+                const width = x2 - x1;
+                const height = y2 - y1;
+                const newX1 = clientX - offsetX;
+                const newY1 = clientY - offsetY;
+                const options = type === ToolEnum.text ? { text: selectedElement.text || '' } : null;
+                updateElement(id, newX1, newY1, newX1 + width, newY1 + height, type, options);
+            }
+        } else if (action === ActionEnum.resizing) {
+            if (!selectedElement) return;
+            const { id, type, position, ...coordinates } = selectedElement;
+            if (!position) return;
+            const resizedCoordinatesResult = resizedCoordinates(clientX, clientY, position, coordinates as PositionXYXY);
+            if (!resizedCoordinatesResult) return alert('resizedCoordinatesResult is null')
+            const {x1, y1, x2, y2 } = resizedCoordinatesResult
+            updateElement(id, x1, y1, x2, y2, type);
+        }
+    };
+
+    const handleMouseUp = (event:MouseEvent) => {
+        const { clientX, clientY } = getMouseCoordinates(event);
+        if (!selectedElement) return alert(' selectedElement reqire')
+        console.log('check selectedElement: ' , selectedElement)
+        const { offsetX , offsetY  } = selectedElement
+        if ( !offsetX || !offsetY ) return 
+        
+        // 因為沒有 offsetX offsetY 所以不會往下跑
+        if (
+            selectedElement.type === ToolEnum.text &&
+            clientX - offsetX ===  selectedElement.x1 &&
+            clientY - offsetY === selectedElement.y1
+        ) {
+            setAction(ActionEnum.writing);
+            return;
+        }
+
+        const index = selectedElement.id;
+        const { id, type } = elements[index];
+        if ((action === "drawing" || action === "resizing") && adjustmentRequired(type)) {
+            const adjustElementCoordinatesResult = adjustElementCoordinates(elements[index])
+            // console.log('adjustElementCoordinatesResult: ' , adjustElementCoordinatesResult)
+            if (!adjustElementCoordinatesResult) return
+            const { x1, y1, x2, y2 } = adjustElementCoordinatesResult;
+            updateElement(id, x1, y1, x2, y2, type);
+        }
+
+        if (action === "writing") return;
+        
+        setAction(ActionEnum.none);
+        setSelectedElement(null);
+    };
+
+    const handleBlur = (e:FocusEvent) => {
+        if (!selectedElement) return;
+        const { id, x1, y1, type } = selectedElement;
+        if (!x1 || !y1 ) return 
+        setAction(ActionEnum.none);
+        setSelectedElement(null);
+        updateElement(id, x1, y1, null , null , type, { text: (e.target as HTMLTextAreaElement).value });
+    };
+
+    return (
+        <div>
+            <div style={{ position: "fixed", zIndex: 2 }}>
+                <input
+                    type="radio"
+                    id="selection"
+                    checked={tool === ToolEnum.selection}
+                    onChange={() => setTool(ToolEnum.selection )}/>
+
+                <label htmlFor="selection">Selection</label>
+                <input 
+                    type="radio" 
+                    id="line" 
+                    checked={tool === "line"} 
+                    onChange={() => setTool(ToolEnum.line)} />
+                <label htmlFor="line">Line</label>
+                <input
+                    type="radio"
+                    id="rectangle"
+                    checked={tool === ToolEnum.rectangle}
+                    onChange={() => setTool(ToolEnum.rectangle)} />
+                <label htmlFor="rectangle">Rectangle</label>
+                <input
+                    type="radio"
+                    id="pencil"
+                    checked={tool === ToolEnum.pencil}
+                    onChange={() => setTool(ToolEnum.pencil)}/>
+                <label htmlFor="pencil">Pencil</label>
+                <input 
+                    type="radio" 
+                    id="text" 
+                    checked={tool === ToolEnum.text} 
+                    onChange={() => setTool(ToolEnum.text)} />
+                <label htmlFor="text">Text</label>
+            </div>
+            <div 
+                className=" fixed bottom-0 p-3"
+                style={{ zIndex: 2 }}>
+                <button onClick={undo}>Undo</button>
+                <button onClick={redo}>Redo</button>
+            </div>
+
+            { action === ActionEnum.writing && selectedElement &&  selectedElement.y1 && selectedElement.x1 ? (
+                <textarea
+                    ref={textAreaRef}
+                    value={textAreaVal}
+                    onBlur={(e:FocusEvent)=>handleBlur(e)}
+                    className=" fixed m-0 p-0 border-0 outline-0 resize overflow-hidden whitespace-pre bg-transparent "
+                    style={{
+                        top: selectedElement.y1 - 2 + panOffset.y,
+                        left: selectedElement.x1 + panOffset.x,
+                        font: "24px sans-serif",
+                        zIndex: 2
+                        }}/>
+            ) : null}
+            {loaded && <canvas
+                ref={canvasRef}
+                id="canvas"
+                width={window.innerWidth}
+                height={window.innerHeight}
+                onMouseDown={(e:MouseEvent)=>handleMouseDown(e)}
+                onMouseMove={(e:MouseEvent)=>handleMouseMove(e)}
+                onMouseUp={(e:MouseEvent)=>handleMouseUp(e)}
+                className=" absolute"
+                style={{ zIndex: 1 }} >
+                Canvas
+            </canvas> }
+
+        </div>
+    );
 };
 
 export default App;
