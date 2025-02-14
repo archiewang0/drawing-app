@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
-import { DrawModeEnum } from '../enums/draw'
+import { ToolModeEnum } from '../enums/draw'
 
 export const useDraw = (
-  drawMode: DrawModeEnum,
+  toolMode: ToolModeEnum,
   onDrawLine: ({ ctx, currentPoint, prevPoint , startPoint }: Draw) => void , 
   onDrawRect: ({ ctx, currentPoint, prevPoint , startPoint , isDrawing }: DrawRect) => void
   ) => {
@@ -66,8 +66,8 @@ export const useDraw = (
       if (!ctx || !currentPoint) return
 
       // 再將參數 帶入 function params
-      switch (drawMode)  {
-        case DrawModeEnum.line:
+      switch (toolMode)  {
+        case ToolModeEnum.line:
           onDrawLine({ 
             ctx, 
             currentPoint, 
@@ -75,7 +75,7 @@ export const useDraw = (
             startPoint: startPoint.current , 
           })
           break;
-        case DrawModeEnum.rectangle:
+        case ToolModeEnum.rectangle:
 
           onDrawRect({
             ctx, 
@@ -97,7 +97,7 @@ export const useDraw = (
       const ctx = canvas.getContext('2d')
       if (!ctx) return
 
-      if(drawMode === DrawModeEnum.rectangle) {
+      if(toolMode === ToolModeEnum.rectangle) {
         onDrawRect({
           ctx, 
           currentPoint: prevPoint.current!, 
@@ -131,7 +131,7 @@ export const useDraw = (
       window.removeEventListener('mouseup', mouseUpHandler)
       tempCanvas.remove()
     }
-  }, [onDrawLine , onDrawRect , drawMode])
+  }, [onDrawLine , onDrawRect , toolMode])
 
   return { canvasRef , tempCanvasRef , onMouseDown  , clear }
 }

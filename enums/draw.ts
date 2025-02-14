@@ -1,6 +1,13 @@
-enum DrawModeEnum {
+enum ToolModeEnum {
     line='line',
-    rectangle = 'rectangle'
+    rectangle = 'rectangle',
+    selector = 'selector'
 }
 
-export { DrawModeEnum }
+enum ActionEnum {
+    none = "none", //放開點擊
+    drawing = "drawing", //選擇tool action 就是drawing
+    moving = "moving" //選擇selector action 就是moving
+}
+
+export { ToolModeEnum , ActionEnum}
