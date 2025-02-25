@@ -7,7 +7,7 @@ import { ToolModeEnum , ActionEnum , ElementPositionEnum ,CursorStyleEnum } from
 import { RoughGenerator } from 'roughjs/bin/generator'
 import { RoughCanvas } from 'roughjs/bin/canvas'
 import { Drawable } from 'roughjs/bin/core'
-import { createDrawElement , positionWithinElement , cursorForPosition , resizeCoordinates } from '../utils/draw'
+import { createDrawElement , positionWithinElement , cursorForPosition , resizeCoordinates , drawElement , adjustmentRequired } from '../utils/draw'
 import { useHistory } from '../hooks/useHistory'
 
 
@@ -48,9 +48,18 @@ const Page: FC<pageProps> = ({}) => {
     };
 
     const updateElement = (id:number , x1:number , y1:number , x2:number , y2: number ,type:ToolModeEnum) =>{
-        const updatedElement = createDrawElement( id ,x1 , y1 ,x2 ,y2  , type)
         const copyElements = [...elements]
-        copyElements[id] = updatedElement
+
+        switch (type) {
+            case "line":
+            case "rectangle":
+                copyElements[id] = createDrawElement(id, x1, y1, x2, y2, type);
+                break;
+            case "pencil":
+                copyElements[id].points = [...copyElements[id].points, { x: x2, y: y2 }];
+                break;
+        }
+
         setElements(copyElements , true)
     }
 
@@ -77,6 +86,15 @@ const Page: FC<pageProps> = ({}) => {
             // 找到有position得element
             const element = getElementAtPosition(clientX , clientY , elements)
             if (element) {
+                
+                if (element.type === ToolModeEnum.pencil) {
+                    const xOffsets = element.points.map(point => clientX - point.x);
+                    const yOffsets = element.points.map(point => clientY - point.y);
+                    setSelectedElement({ ...element, xOffsets, yOffsets });
+                } else {
+
+                }
+
                 setSelectedElement({...element })
                 setElements(pre => pre)
 
@@ -97,7 +115,6 @@ const Page: FC<pageProps> = ({}) => {
             setSelectedElement({...defaultElement , offsetX: 0 , offsetY: 0 , position: null})
             setAction(ActionEnum.drawing)
         }
-
     }
 
     const handlerMouseMove =(e:MouseEvent)=>{
@@ -149,7 +166,7 @@ const Page: FC<pageProps> = ({}) => {
         if ( selectedElement ) {
             const lastIdx = selectedElement?.id
             const { id , type } = elements[lastIdx]
-            if (action === ActionEnum.drawing || action === ActionEnum.resize) {
+            if (( action === ActionEnum.drawing || action === ActionEnum.resize ) && adjustmentRequired(type)) {
                 const { x1 , y1 , x2 , y2 } = adjectElementCoordinates(elements[lastIdx])
                 // console.log('檢查調整過的xy: ' , {x1,y1,x2,y2})
                 updateElement(id , x1 ,y1 , x2, y2 ,type)
@@ -171,8 +188,10 @@ const Page: FC<pageProps> = ({}) => {
         ctx.clearRect(0 , 0 ,750 , 750)
 
         const roughCanvas  = new RoughCanvas(canvasRef.current as HTMLCanvasElement);
+        
         // 當elements 更新, 畫面就需要更新
-        elements.forEach(el => roughCanvas.draw(el.roughElement))
+        // elements.forEach(el => roughCanvas.draw(el.roughElement))
+        elements.forEach(el => drawElement(roughCanvas , ctx , el) )
 
         const undoRedoHandler = (e: KeyboardEvent) =>{
             if ( (e.metaKey || e.ctrlKey) && e.key === 'z') {
@@ -208,6 +227,13 @@ const Page: FC<pageProps> = ({}) => {
                         type="radio"  
                         checked={tool === ToolModeEnum.selector} 
                         onChange={()=>{ setTool(ToolModeEnum.selector)}}/>
+                </label>
+                <label className='p-4'>
+                    pencil
+                    <input 
+                        type="radio"  
+                        checked={tool === ToolModeEnum.pencil} 
+                        onChange={()=>{ setTool(ToolModeEnum.pencil)}}/>
                 </label>
                 <button onClick={undo} className='border-x border-black p-2 mr-1'>undo</button>
                 <button onClick={redo} className='border-x border-black p-2'>redo</button>

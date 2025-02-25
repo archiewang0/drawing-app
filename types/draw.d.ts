@@ -3,8 +3,10 @@ interface DrawElement extends PositionXYXY{
     id: number
     roughElement: Drawable
     type: ToolModeEnum
+    points: PositionXY[] //如果不是鉛筆的話 points []
 }
 
+// 選到的DrawElement 
 interface SelectedDrawElement extends DrawElement {
     offsetX: number
     offsetY: number

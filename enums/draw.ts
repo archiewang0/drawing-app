@@ -1,7 +1,8 @@
 enum ToolModeEnum {
     line='line',
     rectangle = 'rectangle',
-    selector = 'selector'
+    selector = 'selector',
+    pencil = 'pencil'
 }
 
 enum ActionEnum {
