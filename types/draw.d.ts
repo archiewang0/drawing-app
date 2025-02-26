@@ -10,6 +10,8 @@ interface DrawElement extends PositionXYXY{
 interface SelectedDrawElement extends DrawElement {
     offsetX: number
     offsetY: number
+    xOffsets: number[] // pencil用, 其他就為 []
+    yOffsets: number[] // pencil用, 其他就為 []
     position: ElementPositionEnum | null
 }
 

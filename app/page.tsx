@@ -42,7 +42,7 @@ const Page: FC<pageProps> = ({}) => {
         return elements
             .map(element => {
                 const position = positionWithinElement(curX, curY, element);
-                return { ...element, position , offsetX: curX - element.x1,offsetY: curY - element.y1};
+                return { ...element, position , offsetX: curX - element.x1,offsetY: curY - element.y1 , xOffsets: [], yOffsets: [] };
             })
             .find(element => element.position);
     };
@@ -87,12 +87,15 @@ const Page: FC<pageProps> = ({}) => {
             const element = getElementAtPosition(clientX , clientY , elements)
             if (element) {
                 
+
                 if (element.type === ToolModeEnum.pencil) {
                     const xOffsets = element.points.map(point => clientX - point.x);
                     const yOffsets = element.points.map(point => clientY - point.y);
                     setSelectedElement({ ...element, xOffsets, yOffsets });
                 } else {
-
+                    const offsetX = clientX - element.x1;
+                    const offsetY = clientY - element.y1;
+                    setSelectedElement({ ...element, offsetX, offsetY });
                 }
 
                 setSelectedElement({...element })
@@ -112,7 +115,7 @@ const Page: FC<pageProps> = ({}) => {
             setElements(pre => [...pre ,defaultElement ])
             
             // 進行畫圖 element 就成為selectedElement , offset offsetY position 都先帶入default值
-            setSelectedElement({...defaultElement , offsetX: 0 , offsetY: 0 , position: null})
+            setSelectedElement({...defaultElement , offsetX: 0 , offsetY: 0  , xOffsets: [] , yOffsets: [], position: null})
             setAction(ActionEnum.drawing)
         }
     }
@@ -144,7 +147,28 @@ const Page: FC<pageProps> = ({}) => {
             const { id ,x1 , y1} = elements[getElementIdx]
             updateElement(id , x1,y1,clientX,clientY, tool)
         } else if (action === ActionEnum.moving) {
+
             if ( !selectedElement ) return;
+            if (selectedElement.type ===  ToolModeEnum.pencil) {
+                const newPoints = selectedElement.points.map((_, index) => ({
+                    x: clientX - selectedElement.xOffsets[index],
+                    y: clientY - selectedElement.yOffsets[index],
+                }));
+                const elementsCopy = [...elements];
+                elementsCopy[selectedElement.id] = {
+                    ...elementsCopy[selectedElement.id],
+                    points: newPoints,
+                };
+                setElements(elementsCopy, true);
+            } else {
+                const { id, x1, x2, y1, y2, type, offsetX, offsetY } = selectedElement;
+                const width = x2 - x1;
+                const height = y2 - y1;
+                const newX1 = clientX - offsetX;
+                const newY1 = clientY - offsetY;
+                updateElement(id, newX1, newY1, newX1 + width, newY1 + height, type);
+            }
+
             const {id, x1,y1,x2,y2 , type , offsetX , offsetY} = selectedElement
             const elementWidth = x2- x1
             const elementHight = y2 - y1
