@@ -36,7 +36,7 @@ const drawElement = (canvas: RoughCanvas , ctx: CanvasRenderingContext2D , eleme
     }
 }
 
-const createDrawElement = (id:number , x1:number , y1:number , x2:number , y2:number , mode: ToolModeEnum): DrawElement=>{
+const createElement = (id:number , x1:number , y1:number , x2:number , y2:number , mode: ToolModeEnum): DrawElement=>{
     // line 要起始點與結束點
     if (mode === ToolModeEnum.line ) return { id , x1 , y1 , x2 , y2 , type: mode , roughElement: generator.line( x1,y1,x2,y2) , points: []}
 
@@ -74,9 +74,9 @@ const positionWithinElement = (curX:number , curY:number , element:DrawElement):
     switch (type){
         case ToolModeEnum.line:
             // line
+            const on = onLine(x1, y1, x2, y2, curX, curY)
             const start = nearPoint(curX ,curY, x1,y1, ElementPositionEnum.start)
             const end = nearPoint(curX ,curY,x2,y2, ElementPositionEnum.end)
-            const on = onLine(x1, y1, x2, y2, curX, curY)
             return start || end || on
         case ToolModeEnum.rectangle:
             // rectangle
@@ -136,5 +136,5 @@ const adjustmentRequired = (type:ToolModeEnum):boolean => [ToolModeEnum.line, To
 
 
 export {
-    createDrawElement, distance , nearPoint ,positionWithinElement ,cursorForPosition ,resizeCoordinates , drawElement , adjustmentRequired
+    createElement, distance , nearPoint ,positionWithinElement ,cursorForPosition ,resizeCoordinates , drawElement , adjustmentRequired
 }

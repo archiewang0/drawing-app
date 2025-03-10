@@ -19,7 +19,7 @@ export const useHistory = <T>(initialState: T): [
         action:  actionType<T>,
         overwrite: boolean = false
     ) => {
-        const newState = typeof action !== "function" ? action : (action as  actionFunction<T> )(history[index]) ;
+        const newState = typeof action === "function" ? (action as  actionFunction<T> )(history[index]) :  action ;
 
         if (overwrite) {
             const historyCopy = [...history];

@@ -7,24 +7,45 @@ import { ToolModeEnum , ActionEnum , ElementPositionEnum ,CursorStyleEnum } from
 import { RoughGenerator } from 'roughjs/bin/generator'
 import { RoughCanvas } from 'roughjs/bin/canvas'
 import { Drawable } from 'roughjs/bin/core'
-import { createDrawElement , positionWithinElement , cursorForPosition , resizeCoordinates , drawElement , adjustmentRequired } from '../utils/draw'
+import { createElement , positionWithinElement , cursorForPosition , resizeCoordinates , drawElement , adjustmentRequired } from '../utils/draw'
 import { useHistory } from '../hooks/useHistory'
 
 
 interface pageProps {}
 
 const Page: FC<pageProps> = ({}) => {
+    const [elements , setElements , undo , redo] = useHistory<DrawElement[]>([])
+    const [action,setAction] = useState<ActionEnum>(ActionEnum.none)
+    const [tool , setTool] = useState<ToolModeEnum>(ToolModeEnum.line)
+    const [selectedElement , setSelectedElement] = useState<SelectedDrawElement|null>(null)
     const [loaded , setLoaded] = useState(false)
     const canvasRef = useRef<HTMLCanvasElement>(null)
 
-    // const [elements,setElements] = useState<DrawElement[]>([])
-    const [elements , setElements , undo , redo] = useHistory<DrawElement[]>([])
+    useEffect(()=>{
+        if (!canvasRef.current) return;
 
-    const [action,setAction] = useState<ActionEnum>(ActionEnum.none)
+        const ctx = (canvasRef?.current as HTMLCanvasElement).getContext("2d")
+        if (!ctx) return;
+        ctx.clearRect(0 , 0 ,750 , 750)
 
-    const [tool , setTool] = useState<ToolModeEnum>(ToolModeEnum.line)
-    const [selectedElement , setSelectedElement] = useState<SelectedDrawElement|null>(null)
+        const roughCanvas  = new RoughCanvas(canvasRef.current as HTMLCanvasElement);
+        
+        // 當elements 更新, 畫面就需要更新
+        // elements.forEach(el => roughCanvas.draw(el.roughElement))
+        elements.forEach(el => drawElement(roughCanvas , ctx , el) )
 
+    },[canvasRef , loaded , elements])
+
+    useEffect(()=>{
+        const undoRedoHandler = (e: KeyboardEvent) =>{
+            if ( (e.metaKey || e.ctrlKey) && e.key === 'z') {
+                if (e.shiftKey) redo()
+                else undo()
+            }
+        }
+        window.addEventListener('keydown' , undoRedoHandler)
+        return ()=> window.removeEventListener('keydown' , undoRedoHandler)
+    }, [ loaded ,undo ,redo])
 
     const computePointInCanvas = (e: MouseEvent ): {x:number , y:number} | undefined => {
         const canvas = canvasRef.current
@@ -36,7 +57,6 @@ const Page: FC<pageProps> = ({}) => {
     
         return { x, y }
     }
-
 
     const getElementAtPosition = (curX: number, curY: number, elements: DrawElement[]): SelectedDrawElement | undefined => {
         return elements
@@ -53,7 +73,7 @@ const Page: FC<pageProps> = ({}) => {
         switch (type) {
             case "line":
             case "rectangle":
-                copyElements[id] = createDrawElement(id, x1, y1, x2, y2, type);
+                copyElements[id] = createElement(id, x1, y1, x2, y2, type);
                 break;
             case "pencil":
                 copyElements[id].points = [...copyElements[id].points, { x: x2, y: y2 }];
@@ -86,20 +106,21 @@ const Page: FC<pageProps> = ({}) => {
             // 找到有position得element
             const element = getElementAtPosition(clientX , clientY , elements)
             if (element) {
-                
-
                 if (element.type === ToolModeEnum.pencil) {
                     const xOffsets = element.points.map(point => clientX - point.x);
                     const yOffsets = element.points.map(point => clientY - point.y);
+                    console.log('xOffsets: ' , xOffsets)
+                    console.log('yOffsets: ' , yOffsets)
+                    console.log('element: ' , element)
+                    // 將鉛筆寫入 selectedElement
                     setSelectedElement({ ...element, xOffsets, yOffsets });
                 } else {
                     const offsetX = clientX - element.x1;
                     const offsetY = clientY - element.y1;
                     setSelectedElement({ ...element, offsetX, offsetY });
                 }
-
-                setSelectedElement({...element })
-                setElements(pre => pre)
+                console.log('elements down: ', elements)
+                // setElements(pre => pre)
 
                 if (element.position === ElementPositionEnum.inside) {
                     setAction(ActionEnum.moving)
@@ -110,7 +131,7 @@ const Page: FC<pageProps> = ({}) => {
             }
         } else {
             const id = elements.length
-            const defaultElement = createDrawElement( id ,clientX , clientY , clientX ,clientY , tool)
+            const defaultElement = createElement( id ,clientX , clientY , clientX ,clientY , tool)
             // 先建立default , 當滑鼠移動時, 再將此element 進行update
             setElements(pre => [...pre ,defaultElement ])
             
@@ -126,13 +147,13 @@ const Page: FC<pageProps> = ({}) => {
         const { x: clientX, y:clientY} = currentCursorPosition
         // 取得目前滑鼠移動的位置
 
+        console.log('top elements1: ' , elements)
 
         // cursor 變化
         if (tool === ToolModeEnum.selector) {
             const element = getElementAtPosition(clientX , clientY , elements);
             (e.target as HTMLCanvasElement).style.cursor = element ? cursorForPosition(element.position!) : CursorStyleEnum.default
         }
-
 
         if (action === ActionEnum.drawing) {
             // 目前移動的位置
@@ -147,18 +168,23 @@ const Page: FC<pageProps> = ({}) => {
             const { id ,x1 , y1} = elements[getElementIdx]
             updateElement(id , x1,y1,clientX,clientY, tool)
         } else if (action === ActionEnum.moving) {
-
+            console.log('selectedElement: ' ,selectedElement)
+            console.log('top elements2: ' , elements)
             if ( !selectedElement ) return;
             if (selectedElement.type ===  ToolModeEnum.pencil) {
-                const newPoints = selectedElement.points.map((_, index) => ({
-                    x: clientX - selectedElement.xOffsets[index],
-                    y: clientY - selectedElement.yOffsets[index],
-                }));
+                // const {id} = selectedElement
+                const newPoints = selectedElement.points.map((point, index) => {
+                    return {
+                        x: clientX - selectedElement.xOffsets[index],
+                        y: clientY - selectedElement.yOffsets[index],
+                    }
+                })
+            
                 const elementsCopy = [...elements];
-                elementsCopy[selectedElement.id] = {
-                    ...elementsCopy[selectedElement.id],
-                    points: newPoints,
-                };
+                console.log('elementsCopy: ' , elementsCopy)
+                console.log('newPoints: ', newPoints)
+                elementsCopy[selectedElement.id].points = newPoints
+                console.log('elementsCopy2: ' , elementsCopy)
                 setElements(elementsCopy, true);
             } else {
                 const { id, x1, x2, y1, y2, type, offsetX, offsetY } = selectedElement;
@@ -190,6 +216,7 @@ const Page: FC<pageProps> = ({}) => {
         if ( selectedElement ) {
             const lastIdx = selectedElement?.id
             const { id , type } = elements[lastIdx]
+            // adjustmentRequired(type) 檢查型別是否 line 或是 rectangle
             if (( action === ActionEnum.drawing || action === ActionEnum.resize ) && adjustmentRequired(type)) {
                 const { x1 , y1 , x2 , y2 } = adjectElementCoordinates(elements[lastIdx])
                 // console.log('檢查調整過的xy: ' , {x1,y1,x2,y2})
@@ -204,29 +231,9 @@ const Page: FC<pageProps> = ({}) => {
         setLoaded(window && true)
     },[])
 
-    useEffect(()=>{
-        if (!canvasRef.current) return;
 
-        const ctx = (canvasRef?.current as HTMLCanvasElement).getContext("2d")
-        if (!ctx) return;
-        ctx.clearRect(0 , 0 ,750 , 750)
 
-        const roughCanvas  = new RoughCanvas(canvasRef.current as HTMLCanvasElement);
-        
-        // 當elements 更新, 畫面就需要更新
-        // elements.forEach(el => roughCanvas.draw(el.roughElement))
-        elements.forEach(el => drawElement(roughCanvas , ctx , el) )
 
-        const undoRedoHandler = (e: KeyboardEvent) =>{
-            if ( (e.metaKey || e.ctrlKey) && e.key === 'z') {
-                if (e.shiftKey) redo()
-                else undo()
-            }
-        }
-
-        window.addEventListener('keydown' , undoRedoHandler)
-        return ()=> window.removeEventListener('keydown' , undoRedoHandler)
-    },[canvasRef , loaded , elements])
 
 
     return (
