@@ -7,7 +7,7 @@ import { ToolModeEnum , ActionEnum , ElementPositionEnum ,CursorStyleEnum } from
 import { RoughGenerator } from 'roughjs/bin/generator'
 import { RoughCanvas } from 'roughjs/bin/canvas'
 import { Drawable } from 'roughjs/bin/core'
-import { createElement , positionWithinElement , cursorForPosition , resizeCoordinates , drawElement , adjustmentRequired } from '../utils/draw'
+import { createElement , positionWithinElement , cursorForPosition , resizedCoordinates , drawElement , adjustmentRequired , getElementAtPosition , adjustElementCoordinates } from '../utils/draw'
 import { useHistory } from '../hooks/useHistory'
 
 
@@ -58,14 +58,7 @@ const Page: FC<pageProps> = ({}) => {
         return { x, y }
     }
 
-    const getElementAtPosition = (curX: number, curY: number, elements: DrawElement[]): SelectedDrawElement | undefined => {
-        return elements
-            .map(element => {
-                const position = positionWithinElement(curX, curY, element);
-                return { ...element, position , offsetX: curX - element.x1,offsetY: curY - element.y1 , xOffsets: [], yOffsets: [] };
-            })
-            .find(element => element.position);
-    };
+
 
     const updateElement = (id:number , x1:number , y1:number , x2:number , y2: number ,type:ToolModeEnum) =>{
         const copyElements = [...elements]
@@ -83,19 +76,7 @@ const Page: FC<pageProps> = ({}) => {
         setElements(copyElements , true)
     }
 
-    const adjectElementCoordinates = (element: DrawElement): PositionXYXY => {
-        const {type , x1 , y1 , x2 ,y2} = element
-        if (type === ToolModeEnum.rectangle) {
-            const minX = Math.min(x1,x2)
-            const maxX = Math.max(x1,x2)
-            const minY = Math.min(y1,y2)
-            const maxY = Math.max(y1,y2)
-            return { x1: minX , y1:minY ,x2:maxX , y2:maxY }
-        } else {
-            if(x1 < x2 || (x1 === x2 && y1 < y2) ) return {x1 ,y1 ,x2 ,y2}
-            else return {x1: x2 , y1: y2 , x2: x1, y2: y1}
-        }
-    }
+
 
     const handlerMouseDown =(e:MouseEvent)=>{
         const currentCursorPosition = computePointInCanvas(e)
@@ -195,16 +176,16 @@ const Page: FC<pageProps> = ({}) => {
                 updateElement(id, newX1, newY1, newX1 + width, newY1 + height, type);
             }
 
-            const {id, x1,y1,x2,y2 , type , offsetX , offsetY} = selectedElement
-            const elementWidth = x2- x1
-            const elementHight = y2 - y1
-            const newX1 = clientX - offsetX
-            const newY1 = clientY - offsetY
-            updateElement(id , newX1, newY1 ,newX1 + elementWidth, newY1 + elementHight, type)
+            // const {id, x1,y1,x2,y2 , type , offsetX , offsetY} = selectedElement
+            // const elementWidth = x2- x1
+            // const elementHight = y2 - y1
+            // const newX1 = clientX - offsetX
+            // const newY1 = clientY - offsetY
+            // updateElement(id , newX1, newY1 ,newX1 + elementWidth, newY1 + elementHight, type)
         } else if (action === ActionEnum.resize) {
             if (!selectedElement) return;
             const { id , type , position , ...coordinates } = selectedElement
-            const resizeResult = resizeCoordinates( clientX ,clientY , position! ,coordinates)
+            const resizeResult = resizedCoordinates( clientX ,clientY , position! ,coordinates)
             if (!resizeResult) return;
             const {x1 , y1 , x2 , y2} = resizeResult
             updateElement(id , x1 , y1 , x2 , y2 , type)
@@ -218,7 +199,7 @@ const Page: FC<pageProps> = ({}) => {
             const { id , type } = elements[lastIdx]
             // adjustmentRequired(type) 檢查型別是否 line 或是 rectangle
             if (( action === ActionEnum.drawing || action === ActionEnum.resize ) && adjustmentRequired(type)) {
-                const { x1 , y1 , x2 , y2 } = adjectElementCoordinates(elements[lastIdx])
+                const { x1 , y1 , x2 , y2 } = adjustElementCoordinates(elements[lastIdx])
                 // console.log('檢查調整過的xy: ' , {x1,y1,x2,y2})
                 updateElement(id , x1 ,y1 , x2, y2 ,type)
             }

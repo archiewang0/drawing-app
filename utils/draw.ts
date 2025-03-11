@@ -6,35 +6,6 @@ import getStroke from "perfect-freehand"
 
 const generator = new RoughGenerator()
 
-// perfect-freehand 的演算法
-function getSvgPathFromStroke(stroke: number[][] ) {
-    if (!stroke.length) return ''
-    const d = stroke.reduce(
-        (acc, [x0, y0], i, arr) => {
-            const [x1, y1] = arr[(i + 1) % arr.length]
-            acc.push(x0, y0, (x0 + x1) / 2, (y0 + y1) / 2)
-            return acc
-        },
-        ['M', ...stroke[0], 'Q']
-    )
-    d.push('Z')
-    return d.join(' ')
-}
-
-
-// 當react element 變更時候靠這個畫圖
-const drawElement = (canvas: RoughCanvas , ctx: CanvasRenderingContext2D , element: DrawElement ) => {
-    switch (element.type) {
-        case ToolModeEnum.line:
-        case ToolModeEnum.rectangle:
-            canvas.draw(element.roughElement);
-            break;
-        case ToolModeEnum.pencil:
-            const stroke = getSvgPathFromStroke(getStroke(element.points , {size: 4}));
-            ctx.fill(new Path2D(stroke));
-            break;
-    }
-}
 
 const createElement = (id:number , x1:number , y1:number , x2:number , y2:number , mode: ToolModeEnum): DrawElement=>{
     // line 要起始點與結束點
@@ -51,13 +22,10 @@ const createElement = (id:number , x1:number , y1:number , x2:number , y2:number
     return { id,  x1 , y1 , x2 , y2  , type: mode ,  roughElement: generator.rectangle( x1,y1, x2-x1 ,y2-y1) , points: [] }
 }
 
-const distance = ( pointA:PositionXY , pointB:PositionXY):number =>{
-    return Math.sqrt( Math.pow(pointA.x - pointB.x , 2) + Math.pow(pointA.y - pointB.y , 2))
-}
-
 const nearPoint = (x1: number , y1:number , x2:number , y2:number ,positionName:ElementPositionEnum): ElementPositionEnum | null => {
     return Math.abs(x1 - x2) < 5 && Math.abs(y1 -y2) < 5 ? positionName : null
 }
+
 
 const onLine = (x1: number, y1:number, x2:number, y2:number, curX:number, curY:number, maxDistance = 1): ElementPositionEnum | null => {
     const a = { x: x1, y: y1 };
@@ -68,7 +36,6 @@ const onLine = (x1: number, y1:number, x2:number, y2:number, curX:number, curY:n
 };
 
 const positionWithinElement = (curX:number , curY:number , element:DrawElement): ElementPositionEnum | null =>{
-
     const { type , x1 , x2 , y1 ,y2 } = element
     // x1 對應左邊 x2對應右邊 y1對應上面 y2對應下面
     switch (type){
@@ -99,6 +66,38 @@ const positionWithinElement = (curX:number , curY:number , element:DrawElement):
 
 }
 
+const distance = ( pointA:PositionXY , pointB:PositionXY):number =>{
+    return Math.sqrt( Math.pow(pointA.x - pointB.x , 2) + Math.pow(pointA.y - pointB.y , 2))
+}
+
+
+const getElementAtPosition = (curX: number, curY: number, elements: DrawElement[]): SelectedDrawElement | undefined => {
+    return elements
+        .map(element => {
+            const position = positionWithinElement(curX, curY, element);
+            return { ...element, position , offsetX: curX - element.x1,offsetY: curY - element.y1 , xOffsets: [], yOffsets: [] };
+        })
+        .find(element => element.position);
+};
+
+const adjustElementCoordinates = (element: DrawElement): PositionXYXY => {
+    const {type , x1 , y1 , x2 ,y2} = element
+    if (type === ToolModeEnum.rectangle) {
+        const minX = Math.min(x1,x2)
+        const maxX = Math.max(x1,x2)
+        const minY = Math.min(y1,y2)
+        const maxY = Math.max(y1,y2)
+        return { x1: minX , y1:minY ,x2:maxX , y2:maxY }
+    } else {
+        if (x1 < x2 || (x1 === x2 && y1 < y2)) {
+            return { x1, y1, x2, y2 };
+        } else {
+            return { x1: x2, y1: y2, x2: x1, y2: y1 };
+        }
+    }
+}
+
+
 const cursorForPosition = (position: ElementPositionEnum ): CursorStyleEnum => {
     switch (position) {
         case ElementPositionEnum.tl:
@@ -114,7 +113,7 @@ const cursorForPosition = (position: ElementPositionEnum ): CursorStyleEnum => {
     }
 }
 
-const resizeCoordinates = (curX: number , curY: number , position: ElementPositionEnum , coordinates: PositionXYXY): PositionXYXY | null => {
+const resizedCoordinates = (curX: number , curY: number , position: ElementPositionEnum , coordinates: PositionXYXY): PositionXYXY | null => {
     const { x1 , y1 , x2 , y2 } = coordinates
     switch (position) {
         case ElementPositionEnum.tl:
@@ -132,9 +131,38 @@ const resizeCoordinates = (curX: number , curY: number , position: ElementPositi
     }
 }
 
+// perfect-freehand 的演算法
+function getSvgPathFromStroke(stroke: number[][] ) {
+    if (!stroke.length) return ''
+    const d = stroke.reduce(
+        (acc, [x0, y0], i, arr) => {
+            const [x1, y1] = arr[(i + 1) % arr.length]
+            acc.push(x0, y0, (x0 + x1) / 2, (y0 + y1) / 2)
+            return acc
+        },
+        ['M', ...stroke[0], 'Q']
+    )
+    d.push('Z')
+    return d.join(' ')
+}
+
+// 當react element 變更時候靠這個畫圖
+const drawElement = (canvas: RoughCanvas , ctx: CanvasRenderingContext2D , element: DrawElement ) => {
+    switch (element.type) {
+        case ToolModeEnum.line:
+        case ToolModeEnum.rectangle:
+            canvas.draw(element.roughElement);
+            break;
+        case ToolModeEnum.pencil:
+            const stroke = getSvgPathFromStroke(getStroke(element.points , {size: 4}));
+            ctx.fill(new Path2D(stroke));
+            break;
+    }
+}
+
 const adjustmentRequired = (type:ToolModeEnum):boolean => [ToolModeEnum.line, ToolModeEnum.rectangle].includes(type);
 
 
 export {
-    createElement, distance , nearPoint ,positionWithinElement ,cursorForPosition ,resizeCoordinates , drawElement , adjustmentRequired
+    createElement, distance , nearPoint ,positionWithinElement ,cursorForPosition ,resizedCoordinates , drawElement , adjustmentRequired , getElementAtPosition , adjustElementCoordinates
 }
