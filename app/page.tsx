@@ -1,5 +1,5 @@
 'use client'
-import { ChangeEvent, FC, FormEvent, MouseEvent, useCallback, useEffect, useRef, useState } from 'react'
+import { ChangeEvent, FC, FocusEvent , FormEvent, MouseEvent, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useDraw } from '../hooks/useDraw'
 import { ChromePicker } from 'react-color'
 import { useDebounce } from '../hooks/useDebounce'
@@ -20,6 +20,10 @@ const Page: FC<pageProps> = ({}) => {
     const [selectedElement , setSelectedElement] = useState<SelectedDrawElement|null>(null)
     const [loaded , setLoaded] = useState(false)
     const canvasRef = useRef<HTMLCanvasElement>(null)
+    const textAreaRef = useRef<HTMLTextAreaElement>(null)
+
+    const canvasTop = canvasRef.current ? canvasRef.current.getBoundingClientRect().top : null
+    const canvasLeft = canvasRef.current ? canvasRef.current.getBoundingClientRect().left : null
 
     useEffect(()=>{
         if (!canvasRef.current) return;
@@ -47,6 +51,15 @@ const Page: FC<pageProps> = ({}) => {
         return ()=> window.removeEventListener('keydown' , undoRedoHandler)
     }, [ loaded ,undo ,redo])
 
+    useLayoutEffect(()=>{
+        const textArea = textAreaRef.current
+        if (!textArea) return;
+        if (action === ActionEnum.writing){ 
+            new Promise(resolve => setTimeout(resolve ,0)
+            ).then(()=>{  textArea.focus() })
+        }
+    }, [action , selectedElement])
+
     const computePointInCanvas = (e: MouseEvent ): {x:number , y:number} | undefined => {
         const canvas = canvasRef.current
         if (!canvas) return;
@@ -58,27 +71,28 @@ const Page: FC<pageProps> = ({}) => {
         return { x, y }
     }
 
-
-
     const updateElement = (id:number , x1:number , y1:number , x2:number , y2: number ,type:ToolModeEnum) =>{
         const copyElements = [...elements]
 
         switch (type) {
-            case "line":
-            case "rectangle":
+            case ToolModeEnum.line:
+            case ToolModeEnum.rectangle:
                 copyElements[id] = createElement(id, x1, y1, x2, y2, type);
                 break;
-            case "pencil":
+            case ToolModeEnum.pencil:
                 copyElements[id].points = [...copyElements[id].points, { x: x2, y: y2 }];
                 break;
-        }
+            case ToolModeEnum.text:
+
+                break;
+        }   
 
         setElements(copyElements , true)
     }
 
+    const handleMouseDown =(e:MouseEvent)=>{
+        if(action === ActionEnum.writing) return;
 
-
-    const handlerMouseDown =(e:MouseEvent)=>{
         const currentCursorPosition = computePointInCanvas(e)
         if (!currentCursorPosition) return
         const {x: clientX , y:clientY } = currentCursorPosition
@@ -90,9 +104,6 @@ const Page: FC<pageProps> = ({}) => {
                 if (element.type === ToolModeEnum.pencil) {
                     const xOffsets = element.points.map(point => clientX - point.x);
                     const yOffsets = element.points.map(point => clientY - point.y);
-                    console.log('xOffsets: ' , xOffsets)
-                    console.log('yOffsets: ' , yOffsets)
-                    console.log('element: ' , element)
                     // 將鉛筆寫入 selectedElement
                     setSelectedElement({ ...element, xOffsets, yOffsets });
                 } else {
@@ -100,9 +111,6 @@ const Page: FC<pageProps> = ({}) => {
                     const offsetY = clientY - element.y1;
                     setSelectedElement({ ...element, offsetX, offsetY });
                 }
-                console.log('elements down: ', elements)
-                // setElements(pre => pre)
-
                 if (element.position === ElementPositionEnum.inside) {
                     setAction(ActionEnum.moving)
                 } else {
@@ -118,17 +126,15 @@ const Page: FC<pageProps> = ({}) => {
             
             // 進行畫圖 element 就成為selectedElement , offset offsetY position 都先帶入default值
             setSelectedElement({...defaultElement , offsetX: 0 , offsetY: 0  , xOffsets: [] , yOffsets: [], position: null})
-            setAction(ActionEnum.drawing)
+            setAction( tool === ToolModeEnum.text ?  ActionEnum.writing :  ActionEnum.drawing)
         }
     }
 
-    const handlerMouseMove =(e:MouseEvent)=>{
+    const handleMouseMove =(e:MouseEvent)=>{
         const currentCursorPosition = computePointInCanvas(e)
         if (!currentCursorPosition) return
         const { x: clientX, y:clientY} = currentCursorPosition
         // 取得目前滑鼠移動的位置
-
-        console.log('top elements1: ' , elements)
 
         // cursor 變化
         if (tool === ToolModeEnum.selector) {
@@ -162,10 +168,7 @@ const Page: FC<pageProps> = ({}) => {
                 })
             
                 const elementsCopy = [...elements];
-                console.log('elementsCopy: ' , elementsCopy)
-                console.log('newPoints: ', newPoints)
                 elementsCopy[selectedElement.id].points = newPoints
-                console.log('elementsCopy2: ' , elementsCopy)
                 setElements(elementsCopy, true);
             } else {
                 const { id, x1, x2, y1, y2, type, offsetX, offsetY } = selectedElement;
@@ -175,13 +178,6 @@ const Page: FC<pageProps> = ({}) => {
                 const newY1 = clientY - offsetY;
                 updateElement(id, newX1, newY1, newX1 + width, newY1 + height, type);
             }
-
-            // const {id, x1,y1,x2,y2 , type , offsetX , offsetY} = selectedElement
-            // const elementWidth = x2- x1
-            // const elementHight = y2 - y1
-            // const newX1 = clientX - offsetX
-            // const newY1 = clientY - offsetY
-            // updateElement(id , newX1, newY1 ,newX1 + elementWidth, newY1 + elementHight, type)
         } else if (action === ActionEnum.resize) {
             if (!selectedElement) return;
             const { id , type , position , ...coordinates } = selectedElement
@@ -193,7 +189,7 @@ const Page: FC<pageProps> = ({}) => {
         }
     }
 
-    const handlerMouseUp =(e:MouseEvent)=>{
+    const handleMouseUp =(e:MouseEvent)=>{
         if ( selectedElement ) {
             const lastIdx = selectedElement?.id
             const { id , type } = elements[lastIdx]
@@ -204,6 +200,16 @@ const Page: FC<pageProps> = ({}) => {
                 updateElement(id , x1 ,y1 , x2, y2 ,type)
             }
         }
+
+        if(action === ActionEnum.writing) {
+            return 
+        }
+        
+        setAction(ActionEnum.none)
+        setSelectedElement(null)
+    }
+
+    const handleBlur = (e:FocusEvent) =>{
         setAction(ActionEnum.none)
         setSelectedElement(null)
     }
@@ -234,31 +240,49 @@ const Page: FC<pageProps> = ({}) => {
                         onChange={()=>{ setTool(ToolModeEnum.rectangle)}}/>
                 </label>
                 <label className='p-4'>
-                    selector
-                    <input 
-                        type="radio"  
-                        checked={tool === ToolModeEnum.selector} 
-                        onChange={()=>{ setTool(ToolModeEnum.selector)}}/>
-                </label>
-                <label className='p-4'>
                     pencil
                     <input 
                         type="radio"  
                         checked={tool === ToolModeEnum.pencil} 
                         onChange={()=>{ setTool(ToolModeEnum.pencil)}}/>
                 </label>
+                <label className='p-4'>
+                    text
+                    <input 
+                        type="radio"  
+                        checked={tool === ToolModeEnum.text} 
+                        onChange={()=>{ setTool(ToolModeEnum.text)}}/>
+                </label>
+
+                <label className='p-4'>
+                    selector
+                    <input 
+                        type="radio"  
+                        checked={tool === ToolModeEnum.selector} 
+                        onChange={()=>{ setTool(ToolModeEnum.selector)}}/>
+                </label>
+
                 <button onClick={undo} className='border-x border-black p-2 mr-1'>undo</button>
                 <button onClick={redo} className='border-x border-black p-2'>redo</button>
             </div>
+
+            { action === ActionEnum.writing && selectedElement && canvasTop && canvasLeft && <textarea 
+                onBlur={handleBlur}
+                ref={textAreaRef}
+                className=' fixed border border-black' 
+                style={{top: `${selectedElement.y1 + canvasTop}px` , left: selectedElement.x1 + canvasLeft}}/> 
+                }
+
             <div>
                 {loaded &&<canvas
+                
                     width={ 750}
                     height={ 750}
                     className=' border border-black'
                     ref={canvasRef}
-                    onMouseDown={handlerMouseDown}
-                    onMouseMove={handlerMouseMove}
-                    onMouseUp={handlerMouseUp}
+                    onMouseDown={handleMouseDown}
+                    onMouseMove={handleMouseMove}
+                    onMouseUp={handleMouseUp}
                     ></canvas>}
             </div>
         </div>

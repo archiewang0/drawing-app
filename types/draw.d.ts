@@ -4,6 +4,7 @@ interface DrawElement extends PositionXYXY{
     roughElement: Drawable
     type: ToolModeEnum
     points: PositionXY[] //如果不是鉛筆的話 points []
+    text: string
 }
 
 // 選到的DrawElement 

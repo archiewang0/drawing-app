@@ -9,17 +9,18 @@ const generator = new RoughGenerator()
 
 const createElement = (id:number , x1:number , y1:number , x2:number , y2:number , mode: ToolModeEnum): DrawElement=>{
     // line 要起始點與結束點
-    if (mode === ToolModeEnum.line ) return { id , x1 , y1 , x2 , y2 , type: mode , roughElement: generator.line( x1,y1,x2,y2) , points: []}
+    if (mode === ToolModeEnum.line ) return { id , x1 , y1 , x2 , y2 , type: mode , text: '' , roughElement: generator.line( x1,y1,x2,y2) , points: []}
 
     // pencil 只需要 points 其他不需要
     if (mode === ToolModeEnum.pencil) return { id, type: mode , points: [{ x: x1, y: y1 }] ,
         x1: 0 , x2: 0 , y1: 0 , y2: 0,
-        roughElement: generator.path('')
+        roughElement: generator.path(''),
+        text: ''
     };
 
-    // if (mode === DrawModeEnum.rectangle) 
+    // if (mode === ToolModeEnum.rectangle) 
     // 正方形要 起始點與寬高
-    return { id,  x1 , y1 , x2 , y2  , type: mode ,  roughElement: generator.rectangle( x1,y1, x2-x1 ,y2-y1) , points: [] }
+    return { id,  x1 , y1 , x2 , y2  , type: mode , text:'' , roughElement: generator.rectangle( x1,y1, x2-x1 ,y2-y1) , points: [] }
 }
 
 const nearPoint = (x1: number , y1:number , x2:number , y2:number ,positionName:ElementPositionEnum): ElementPositionEnum | null => {
@@ -156,6 +157,10 @@ const drawElement = (canvas: RoughCanvas , ctx: CanvasRenderingContext2D , eleme
         case ToolModeEnum.pencil:
             const stroke = getSvgPathFromStroke(getStroke(element.points , {size: 4}));
             ctx.fill(new Path2D(stroke));
+            break;
+        case ToolModeEnum.text:
+            ctx.font = '24px sans-serif';
+            ctx.fillText(element.text , element.x1 , element.y1)
             break;
     }
 }
