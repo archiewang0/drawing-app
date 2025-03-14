@@ -1,12 +1,12 @@
 'use client'
-import { ChangeEvent, FC, FocusEvent , FormEvent, MouseEvent, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { ChangeEvent, FC, FocusEvent , FormEvent, MouseEvent, useCallback, useEffect , useRef, useState } from 'react'
 import { useDraw } from '../hooks/useDraw'
 import { ChromePicker } from 'react-color'
 import { useDebounce } from '../hooks/useDebounce'
-import { ToolModeEnum , ActionEnum , ElementPositionEnum ,CursorStyleEnum } from '../enums/draw'
 import { RoughGenerator } from 'roughjs/bin/generator'
-import { RoughCanvas } from 'roughjs/bin/canvas'
 import { Drawable } from 'roughjs/bin/core'
+import { RoughCanvas } from 'roughjs/bin/canvas'
+import { ToolModeEnum , ActionEnum , ElementPositionEnum ,CursorStyleEnum } from '../enums/draw'
 import { createElement , positionWithinElement , cursorForPosition , resizedCoordinates , drawElement , adjustmentRequired , getElementAtPosition , adjustElementCoordinates } from '../utils/draw'
 import { useHistory } from '../hooks/useHistory'
 
@@ -25,20 +25,21 @@ const Page: FC<pageProps> = ({}) => {
     const canvasTop = canvasRef.current ? canvasRef.current.getBoundingClientRect().top : null
     const canvasLeft = canvasRef.current ? canvasRef.current.getBoundingClientRect().left : null
 
+    const [panOffset , setPanOffset] = useState({ x: 0 , y: 0 })
+
     useEffect(()=>{
         if (!canvasRef.current) return;
-
         const ctx = (canvasRef?.current as HTMLCanvasElement).getContext("2d")
         if (!ctx) return;
         ctx.clearRect(0 , 0 ,750 , 750)
-
-        const roughCanvas  = new RoughCanvas(canvasRef.current as HTMLCanvasElement);
+        ctx.fillRect(0 ,0 ,100 , 100)
         
-        // 當elements 更新, 畫面就需要更新
-        // elements.forEach(el => roughCanvas.draw(el.roughElement))
-        elements.forEach(el => drawElement(roughCanvas , ctx , el) )
-
-    },[canvasRef , loaded , elements])
+        const roughCanvas  = new RoughCanvas(canvasRef.current as HTMLCanvasElement);
+        elements.forEach(el => { 
+            if (action === ActionEnum.writing && selectedElement?.id === el.id) return;
+            drawElement(roughCanvas , ctx , el) 
+        })
+    },[ canvasRef , loaded , elements , action ])
 
     useEffect(()=>{
         const undoRedoHandler = (e: KeyboardEvent) =>{
@@ -51,14 +52,21 @@ const Page: FC<pageProps> = ({}) => {
         return ()=> window.removeEventListener('keydown' , undoRedoHandler)
     }, [ loaded ,undo ,redo])
 
-    useLayoutEffect(()=>{
+    useEffect(()=>{
         const textArea = textAreaRef.current
         if (!textArea) return;
-        if (action === ActionEnum.writing){ 
+        if (action === ActionEnum.writing &&  selectedElement){ 
             new Promise(resolve => setTimeout(resolve ,0)
-            ).then(()=>{  textArea.focus() })
+            ).then(()=>{  
+                textArea.focus()
+                textArea.value = selectedElement.text
+            })
         }
     }, [action , selectedElement])
+
+    useEffect(()=>{
+        setLoaded(window && true)
+    },[])
 
     const computePointInCanvas = (e: MouseEvent ): {x:number , y:number} | undefined => {
         const canvas = canvasRef.current
@@ -71,23 +79,30 @@ const Page: FC<pageProps> = ({}) => {
         return { x, y }
     }
 
-    const updateElement = (id:number , x1:number , y1:number , x2:number , y2: number ,type:ToolModeEnum) =>{
-        const copyElements = [...elements]
-
+    const updateElement = (id:number , x1:number , y1:number , x2:number , y2: number ,type:ToolModeEnum , option?: {text: string}) =>{
+        const elementsCopy = [...elements]
         switch (type) {
             case ToolModeEnum.line:
             case ToolModeEnum.rectangle:
-                copyElements[id] = createElement(id, x1, y1, x2, y2, type);
+                elementsCopy[id] = createElement(id, x1, y1, x2, y2, type);
                 break;
             case ToolModeEnum.pencil:
-                copyElements[id].points = [...copyElements[id].points, { x: x2, y: y2 }];
+                elementsCopy[id].points = [...elementsCopy[id].points, { x: x2, y: y2 }];
                 break;
             case ToolModeEnum.text:
-
+                const canvasElement = canvasRef.current as HTMLCanvasElement
+                if ( !option ) return
+                const textWidth = canvasElement.getContext("2d")?.measureText(option.text).width
+                const textHight = 24
+                if ( !textWidth ) return 
+                elementsCopy[id] = {
+                    ...createElement( id, x1, y1 , x1+textWidth , y1 + textHight , type ),
+                    text: option.text
+                }
+                // elementsCopy[id].text = option?.text || ""
                 break;
         }   
-
-        setElements(copyElements , true)
+        setElements(elementsCopy , true)
     }
 
     const handleMouseDown =(e:MouseEvent)=>{
@@ -134,7 +149,6 @@ const Page: FC<pageProps> = ({}) => {
         const currentCursorPosition = computePointInCanvas(e)
         if (!currentCursorPosition) return
         const { x: clientX, y:clientY} = currentCursorPosition
-        // 取得目前滑鼠移動的位置
 
         // cursor 變化
         if (tool === ToolModeEnum.selector) {
@@ -155,18 +169,14 @@ const Page: FC<pageProps> = ({}) => {
             const { id ,x1 , y1} = elements[getElementIdx]
             updateElement(id , x1,y1,clientX,clientY, tool)
         } else if (action === ActionEnum.moving) {
-            console.log('selectedElement: ' ,selectedElement)
-            console.log('top elements2: ' , elements)
             if ( !selectedElement ) return;
             if (selectedElement.type ===  ToolModeEnum.pencil) {
-                // const {id} = selectedElement
                 const newPoints = selectedElement.points.map((point, index) => {
                     return {
                         x: clientX - selectedElement.xOffsets[index],
                         y: clientY - selectedElement.yOffsets[index],
                     }
                 })
-            
                 const elementsCopy = [...elements];
                 elementsCopy[selectedElement.id].points = newPoints
                 setElements(elementsCopy, true);
@@ -176,7 +186,8 @@ const Page: FC<pageProps> = ({}) => {
                 const height = y2 - y1;
                 const newX1 = clientX - offsetX;
                 const newY1 = clientY - offsetY;
-                updateElement(id, newX1, newY1, newX1 + width, newY1 + height, type);
+                const options = type === ToolModeEnum.text ? {text: selectedElement.text} : undefined
+                updateElement(id, newX1, newY1, newX1 + width, newY1 + height, type , options);
             }
         } else if (action === ActionEnum.resize) {
             if (!selectedElement) return;
@@ -190,7 +201,19 @@ const Page: FC<pageProps> = ({}) => {
     }
 
     const handleMouseUp =(e:MouseEvent)=>{
+        const currentCursorPosition = computePointInCanvas(e)
+        if (!currentCursorPosition) return
+        const { x: clientX, y:clientY} = currentCursorPosition
         if ( selectedElement ) {
+            if ( 
+                selectedElement.type === ToolModeEnum.text &&  
+                clientX - selectedElement.offsetX === selectedElement.x1 &&
+                clientY - selectedElement.offsetY === selectedElement.y1
+            ) {
+                setAction(ActionEnum.writing)
+                return;
+            } 
+
             const lastIdx = selectedElement?.id
             const { id , type } = elements[lastIdx]
             // adjustmentRequired(type) 檢查型別是否 line 或是 rectangle
@@ -210,13 +233,14 @@ const Page: FC<pageProps> = ({}) => {
     }
 
     const handleBlur = (e:FocusEvent) =>{
+        if (!selectedElement) return
+        const { id , x1 , y1 , type } = selectedElement
         setAction(ActionEnum.none)
         setSelectedElement(null)
+        const blurTarget = e.target as HTMLTextAreaElement
+        updateElement(id ,x1, y1 , 0 , 0 , type , {text: blurTarget.value} )
     }
 
-    useEffect(()=>{
-        setLoaded(window && true)
-    },[])
 
 
 
@@ -269,13 +293,16 @@ const Page: FC<pageProps> = ({}) => {
             { action === ActionEnum.writing && selectedElement && canvasTop && canvasLeft && <textarea 
                 onBlur={handleBlur}
                 ref={textAreaRef}
-                className=' fixed border border-black' 
-                style={{top: `${selectedElement.y1 + canvasTop}px` , left: selectedElement.x1 + canvasLeft}}/> 
+                className=' fixed m-0 p-0 border-0 outline-none resize overflow-hidden bg-transparent' 
+                style={{
+                    top: selectedElement.y1 + canvasTop - 2, 
+                    left: selectedElement.x1 + canvasLeft + 1,
+                    font: '15px sans-serif'
+                }}/> 
                 }
 
             <div>
-                {loaded &&<canvas
-                
+                { loaded && <canvas
                     width={ 750}
                     height={ 750}
                     className=' border border-black'

@@ -18,7 +18,11 @@ const createElement = (id:number , x1:number , y1:number , x2:number , y2:number
         text: ''
     };
 
-    // if (mode === ToolModeEnum.rectangle) 
+    if (mode === ToolModeEnum.text) {
+        // text 沒有使用到 roughElement 就會直接使用generator , points 就直接帶入[]
+        return {id , x1, y1, x2 ,y2 , type: mode , text: '', roughElement: generator , points: [] }
+    } 
+
     // 正方形要 起始點與寬高
     return { id,  x1 , y1 , x2 , y2  , type: mode , text:'' , roughElement: generator.rectangle( x1,y1, x2-x1 ,y2-y1) , points: [] }
 }
@@ -61,6 +65,8 @@ const positionWithinElement = (curX:number , curY:number , element:DrawElement):
                 return onLine(point.x, point.y, nextPoint.x, nextPoint.y, curX, curY, 5) != null;
             });
             return betweenAnyPoint ? ElementPositionEnum.inside : null;
+        case ToolModeEnum.text: 
+            return curX >= x1 && curX <= x2 && curY >= y1 && curY <= y2 ? ElementPositionEnum.inside : null
         default:
             return null
     }
@@ -159,7 +165,8 @@ const drawElement = (canvas: RoughCanvas , ctx: CanvasRenderingContext2D , eleme
             ctx.fill(new Path2D(stroke));
             break;
         case ToolModeEnum.text:
-            ctx.font = '24px sans-serif';
+            ctx.textBaseline = 'top';
+            ctx.font = '15px sans-serif';
             ctx.fillText(element.text , element.x1 , element.y1)
             break;
     }
