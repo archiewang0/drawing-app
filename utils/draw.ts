@@ -2,6 +2,7 @@ import { RoughGenerator } from "roughjs/bin/generator"
 import { ToolModeEnum , ElementPositionEnum , CursorStyleEnum } from "../enums/draw"
 import { RoughCanvas } from "roughjs/bin/canvas"
 import getStroke from "perfect-freehand"
+import { MouseEvent } from "react"
 
 
 const generator = new RoughGenerator()
@@ -173,6 +174,8 @@ const drawElement = (canvas: RoughCanvas , ctx: CanvasRenderingContext2D , eleme
 }
 
 const adjustmentRequired = (type:ToolModeEnum):boolean => [ToolModeEnum.line, ToolModeEnum.rectangle].includes(type);
+
+
 
 
 export {

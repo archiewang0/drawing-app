@@ -11,7 +11,8 @@ enum ActionEnum {
     drawing = "drawing", //選擇tool action 就是drawing
     moving = "moving", //選擇selector action 就是moving
     resize = "resize", //選擇selector 在 element 特定位置 action 會是 resize
-    writing = "writing"
+    writing = "writing" ,
+    panning = "panning"
 }
 
 enum ElementPositionEnum {

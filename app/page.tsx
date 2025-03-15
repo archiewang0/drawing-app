@@ -9,6 +9,7 @@ import { RoughCanvas } from 'roughjs/bin/canvas'
 import { ToolModeEnum , ActionEnum , ElementPositionEnum ,CursorStyleEnum } from '../enums/draw'
 import { createElement , positionWithinElement , cursorForPosition , resizedCoordinates , drawElement , adjustmentRequired , getElementAtPosition , adjustElementCoordinates } from '../utils/draw'
 import { useHistory } from '../hooks/useHistory'
+import { usePressedKeys } from '../hooks/usePressedKeys'
 
 
 interface pageProps {}
@@ -25,21 +26,43 @@ const Page: FC<pageProps> = ({}) => {
     const canvasTop = canvasRef.current ? canvasRef.current.getBoundingClientRect().top : null
     const canvasLeft = canvasRef.current ? canvasRef.current.getBoundingClientRect().left : null
 
-    const [panOffset , setPanOffset] = useState({ x: 0 , y: 0 })
+    const [panOffset , setPanOffset] = useState({ x: 50 , y: 50 })
+    const [startPanMousePosition , setStartPanMousePosition] = useState({x: 0 , y: 0})
+
+    const pressedKeys = usePressedKeys();
+
+    const [scale , setScale] = useState<number>(1)
+    const [scaleOffset , setScaleOffset ] = useState<PositionXY>({x: 0 , y:0})
+
 
     useEffect(()=>{
         if (!canvasRef.current) return;
         const ctx = (canvasRef?.current as HTMLCanvasElement).getContext("2d")
         if (!ctx) return;
         ctx.clearRect(0 , 0 ,750 , 750)
-        ctx.fillRect(0 ,0 ,100 , 100)
+        
+        const scaledWidth = canvasRef.current.width * scale
+        const scaledHeight = canvasRef.current.height * scale
+
+        const scaleOffsetX = (scaledWidth - canvasRef.current.width) / 2
+        const scaleOffsetY = (scaledHeight - canvasRef.current.height) / 2
+
+        setScaleOffset({x: scaleOffsetX , y: scaleOffsetY})
+
+        ctx.save()
+        ctx.translate(panOffset.x * scale -scaleOffsetX , panOffset.y * scale - scaleOffsetY)
+
+        ctx.fillRect(100 , 100, 100 , 100)
+        ctx.scale(scale,scale)
+        ctx.fillRect(100 , 300, 100 , 100)
         
         const roughCanvas  = new RoughCanvas(canvasRef.current as HTMLCanvasElement);
         elements.forEach(el => { 
             if (action === ActionEnum.writing && selectedElement?.id === el.id) return;
             drawElement(roughCanvas , ctx , el) 
         })
-    },[ canvasRef , loaded , elements , action ])
+        ctx.restore()
+    },[ canvasRef , loaded , elements , action , panOffset , scale ])
 
     useEffect(()=>{
         const undoRedoHandler = (e: KeyboardEvent) =>{
@@ -51,6 +74,27 @@ const Page: FC<pageProps> = ({}) => {
         window.addEventListener('keydown' , undoRedoHandler)
         return ()=> window.removeEventListener('keydown' , undoRedoHandler)
     }, [ loaded ,undo ,redo])
+
+
+    useEffect(()=>{
+        const canvas = canvasRef.current as HTMLCanvasElement;
+        if( !canvasRef.current ) return
+        const panOrZoomFunction = (e: WheelEvent) =>{
+            console.log('test ' , pressedKeys)
+
+            if(pressedKeys.has("Meta") || pressedKeys.has("Control")) { 
+
+                onZoom(e.deltaY * -0.01)
+            } else {
+                setPanOffset(pre=>({
+                    x: pre.x - e.deltaX ,
+                    y: pre.y - e.deltaY
+                })) 
+            }
+        }
+        canvas.addEventListener("wheel", panOrZoomFunction)
+        return ()=> canvas.removeEventListener('wheel' , panOrZoomFunction)
+    }, [ canvasRef , canvasRef.current , pressedKeys])
 
     useEffect(()=>{
         const textArea = textAreaRef.current
@@ -67,6 +111,13 @@ const Page: FC<pageProps> = ({}) => {
     useEffect(()=>{
         setLoaded(window && true)
     },[])
+
+    const getMouseCoordinates = ( data: {x: number , y:number}) => {
+        const clientX = (data.x - panOffset.x * scale + scaleOffset.x)/scale;
+        const clientY = (data.y - panOffset.y * scale + scaleOffset.y)/scale;
+        
+        return {clientX ,clientY}
+    }
 
     const computePointInCanvas = (e: MouseEvent ): {x:number , y:number} | undefined => {
         const canvas = canvasRef.current
@@ -110,7 +161,14 @@ const Page: FC<pageProps> = ({}) => {
 
         const currentCursorPosition = computePointInCanvas(e)
         if (!currentCursorPosition) return
-        const {x: clientX , y:clientY } = currentCursorPosition
+        // const {x: clientX , y:clientY } = currentCursorPosition
+        const { clientX , clientY } = getMouseCoordinates(currentCursorPosition)
+
+        if (e.button === 1 || pressedKeys.has(" ")) {
+            setAction(ActionEnum.panning);
+            setStartPanMousePosition({ x: clientX, y: clientY });
+            return;
+        }
 
         if ( tool === ToolModeEnum.selector ){
             // 找到有position得element
@@ -148,7 +206,19 @@ const Page: FC<pageProps> = ({}) => {
     const handleMouseMove =(e:MouseEvent)=>{
         const currentCursorPosition = computePointInCanvas(e)
         if (!currentCursorPosition) return
-        const { x: clientX, y:clientY} = currentCursorPosition
+        // const { x: clientX, y:clientY} = currentCursorPosition
+        const { clientX , clientY } = getMouseCoordinates(currentCursorPosition)
+
+        if (action === ActionEnum.panning) {
+            const deltaX = clientX - startPanMousePosition.x;
+            const deltaY = clientY - startPanMousePosition.y;
+            setPanOffset({
+                x: panOffset.x + deltaX,
+                y: panOffset.y + deltaY,
+            });
+            return;
+        }
+
 
         // cursor 變化
         if (tool === ToolModeEnum.selector) {
@@ -157,12 +227,7 @@ const Page: FC<pageProps> = ({}) => {
         }
 
         if (action === ActionEnum.drawing) {
-            // 目前移動的位置
-            // const { x: x2, y:y2} = currentCursorPosition
-            if ( clientX <=0 || clientY <= 0) {
-                setAction(ActionEnum.none)
-                return
-            }
+  
             // 剛剛mouseDown產生的 element
             const getElementIdx = elements.length -1
             // 將default element x1 , y1 位置取出
@@ -203,7 +268,9 @@ const Page: FC<pageProps> = ({}) => {
     const handleMouseUp =(e:MouseEvent)=>{
         const currentCursorPosition = computePointInCanvas(e)
         if (!currentCursorPosition) return
-        const { x: clientX, y:clientY} = currentCursorPosition
+        // const { x: clientX, y:clientY} = currentCursorPosition
+        const { clientX , clientY } = getMouseCoordinates(currentCursorPosition)
+
         if ( selectedElement ) {
             if ( 
                 selectedElement.type === ToolModeEnum.text &&  
@@ -241,6 +308,11 @@ const Page: FC<pageProps> = ({}) => {
         updateElement(id ,x1, y1 , 0 , 0 , type , {text: blurTarget.value} )
     }
 
+    const onZoom = (delta:number)=>{
+        
+        setScale(pre=> Math.min(Math.max(pre + delta , 0.1) , 20) )
+    }
+
 
 
 
@@ -249,28 +321,28 @@ const Page: FC<pageProps> = ({}) => {
 
     return (
         <div  className='w-screen h-screen bg-white flex justify-center items-start p-5 flex-wrap'>
-            <div className='top-4 left-4 fixed  border border-black bg-amber-200 gap-4'>
-                <label className='p-4'>
+            <div className=' flex items-center top-4 left-4 fixed  border border-black bg-amber-200 gap-4'>
+                <label className='p-1'>
                     draw line
                     <input type="radio" 
                         checked={tool === ToolModeEnum.line}
                         onChange={()=>{  setTool(ToolModeEnum.line)}}/>
                 </label>
-                <label className='p-4'>
+                <label className='p-1'>
                     draw rectangle
                     <input 
                         type="radio"  
                         checked={tool === ToolModeEnum.rectangle} 
                         onChange={()=>{ setTool(ToolModeEnum.rectangle)}}/>
                 </label>
-                <label className='p-4'>
+                <label className='p-1'>
                     pencil
                     <input 
                         type="radio"  
                         checked={tool === ToolModeEnum.pencil} 
                         onChange={()=>{ setTool(ToolModeEnum.pencil)}}/>
                 </label>
-                <label className='p-4'>
+                <label className='p-1'>
                     text
                     <input 
                         type="radio"  
@@ -278,7 +350,7 @@ const Page: FC<pageProps> = ({}) => {
                         onChange={()=>{ setTool(ToolModeEnum.text)}}/>
                 </label>
 
-                <label className='p-4'>
+                <label className='p-1'>
                     selector
                     <input 
                         type="radio"  
@@ -288,6 +360,12 @@ const Page: FC<pageProps> = ({}) => {
 
                 <button onClick={undo} className='border-x border-black p-2 mr-1'>undo</button>
                 <button onClick={redo} className='border-x border-black p-2'>redo</button>
+
+                <div className=' ml-5'>
+                    <button className='border border-black p-1' onClick={()=>onZoom(-0.1)}>-</button>
+                    <span className=' p-2' onClick={()=>onZoom(1)}>{new Intl.NumberFormat("en-GB" , {style: "percent"}).format(scale) }</span>
+                    <button className='border border-black p-1' onClick={()=>onZoom(0.1)}>+</button>
+                </div>
             </div>
 
             { action === ActionEnum.writing && selectedElement && canvasTop && canvasLeft && <textarea 
@@ -295,9 +373,9 @@ const Page: FC<pageProps> = ({}) => {
                 ref={textAreaRef}
                 className=' fixed m-0 p-0 border-0 outline-none resize overflow-hidden bg-transparent' 
                 style={{
-                    top: selectedElement.y1 + canvasTop - 2, 
-                    left: selectedElement.x1 + canvasLeft + 1,
-                    font: '15px sans-serif'
+                    top: (selectedElement.y1 + canvasTop - 2 ) * scale + panOffset.y * scale  -scaleOffset.y, 
+                    left:( selectedElement.x1 + canvasLeft - 1 ) * scale + panOffset.x * scale - (scaleOffset.y ),
+                    font: `${15 * scale}px sans-serif`
                 }}/> 
                 }
 
