@@ -206,8 +206,6 @@ const DrawingComponent: FC<pageProps> = ({}) => {
             setSelectedElement({...defaultElement , offsetX: 0 , offsetY: 0  , xOffsets: [] , yOffsets: [], position: null})
             setAction( tool === ToolModeEnum.text ?  ActionEnum.writing :  ActionEnum.drawing)
         }
-
-
     }
 
     const handleMouseMove =(e:MouseEvent)=>{
@@ -325,7 +323,7 @@ const DrawingComponent: FC<pageProps> = ({}) => {
     }
 
     return (
-        <div  className=' bg-white flex flex-wrap w-full'>
+        <div  className=' bg-white flex flex-wrap w-full overflow-hidden'>
 
             <Toolbar 
                 tool={tool}
@@ -351,7 +349,7 @@ const DrawingComponent: FC<pageProps> = ({}) => {
             }
 
 
-            <div ref={canvasContainerRef} style={{height: '750px'}} className='relative border border-gray-300 rounded-md overflow-hidden w-full'>
+            <div ref={canvasContainerRef} style={{height: '650px'}} className='relative border border-gray-300 rounded-md overflow-hidden w-full'>
                 { loaded && <Canvas 
                     canvasRef={canvasRef}
                     handleMouseDown={handleMouseDown}

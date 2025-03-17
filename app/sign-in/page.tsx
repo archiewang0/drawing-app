@@ -2,6 +2,8 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { ChromeIcon } from "lucide-react"
+import { signIn } from "next-auth/react"
+
 
 export default function LoginPage() {
   return (
@@ -13,7 +15,7 @@ export default function LoginPage() {
         </CardHeader>
         <CardContent className="grid gap-4">
           <Link href="/profile">
-            <Button variant="outline" className="w-full flex items-center justify-center gap-2">
+            <Button onClick={() => signIn("google")} variant="outline" className="w-full flex items-center justify-center gap-2">
               <ChromeIcon className="h-5 w-5" />
               Sign in with Google
             </Button>

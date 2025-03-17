@@ -23,6 +23,7 @@
     "eslint-config-next": "13.0.3",
     "lucide-react": "^0.482.0",
     "next": "13.0.3",
+    "next-auth": "^4.24.11",
     "perfect-freehand": "^1.2.2",
     "react": "18.2.0",
     "react-color": "^2.19.3",
