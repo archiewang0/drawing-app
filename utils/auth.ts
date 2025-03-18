@@ -19,15 +19,15 @@ function getGoogleCredentials(): { clientId: string; clientSecret: string } {
     return {clientId ,clientSecret}
 }
 
-export const { handlers, signIn, signOut, auth } = NextAuth({
-    providers: [
-        Google({
-            clientId: process.env.GOOGLE_CLIENT_ID as string,
-            clientSecret: process.env.GOOGLE_CLIENT_SECRET as string,
-        })
-]   ,
-    secret: process.env.NEXTAUTH_SECRET,
-})
+// export const { handlers, signIn, signOut, auth } = NextAuth({
+//     providers: [
+//         Google({
+//             clientId: process.env.GOOGLE_CLIENT_ID as string,
+//             clientSecret: process.env.GOOGLE_CLIENT_SECRET as string,
+//         })
+// ]   ,
+//     secret: process.env.NEXTAUTH_SECRET,
+// })
 
 
 export const authOptions: NextAuthOptions = {
@@ -48,35 +48,42 @@ export const authOptions: NextAuthOptions = {
         })
     ],
     callbacks:{
-        async session({token,session}){
-            if(token){
-                session.user.id = token.id
-                session.user.name = token.name
-                session.user.email = token.email
-                session.user.image = token.picture
-            }
-            return session
+        async signIn({account ,profile}){
+            console.log('account: ' , account)
+            console.log('profile: ' , profile)
+            return true
         },
-        async jwt({token , user}){
-            const dbUser = await db.user.findFirst({
-                where:{
-                    email: token.email
-                }
-            })
-            if(!dbUser){
-                token.id = user!.id
-                return token
-            }
+        // async session({token,session}){
+        //     if(token){
+        //         session.user.id = token.id
+        //         session.user.name = token.name
+        //         session.user.email = token.email
+        //         session.user.image = token.picture
+        //     }
+        //     return session
+        // },
+        // async jwt({token , user}){
+        //     const dbUser = await db.user.findFirst({
+        //         where:{
+        //             email: token.email
+        //         }
+        //     })
+        //     if(!dbUser){
+        //         token.id = user!.id
+        //         return token
+        //     }
 
-            return {
-                id: dbUser.id,
-                name: dbUser.name,
-                email: dbUser.email,
-                picture: dbUser.image
-            }
-        },
+        //     return {
+        //         id: dbUser.id,
+        //         name: dbUser.name,
+        //         email: dbUser.email,
+        //         picture: dbUser.image
+        //     }
+        // },
         redirect() {
-            return '/dashboard'
+            return '/'
         }
     }
 }
+const handler = NextAuth(authOptions)
+export {handler as GET, handler as POST}
