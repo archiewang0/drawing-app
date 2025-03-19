@@ -1,5 +1,6 @@
 import './globals.css'
 import { NavBar } from '@/components/layout/navbar'
+import { AuthProvider } from '@/components/layout/auth-provider'
 
 export default function RootLayout({ children,}: { children: React.ReactNode}) {
     return (
@@ -10,12 +11,14 @@ export default function RootLayout({ children,}: { children: React.ReactNode}) {
             */}
             <head />
             <body>
-                <div className="flex flex-col min-h-screen">
-                    <NavBar />
-                    <main className="flex-grow">
-                            {children}
-                    </main>
-                </div>
+                <AuthProvider>
+                    <div className="flex flex-col min-h-screen">
+                        <NavBar />
+                        <main className="flex-grow">
+                                {children}
+                        </main>
+                    </div>
+                </AuthProvider>
             </body>
         </html>
     )
