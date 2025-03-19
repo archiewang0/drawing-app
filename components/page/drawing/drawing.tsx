@@ -1,5 +1,5 @@
 'use client'
-import { FC, FocusEvent , MouseEvent, useEffect , useRef, useState } from 'react'
+import { FC, FocusEvent , MouseEvent, RefObject, useEffect , useRef, useState } from 'react'
 import { RoughCanvas } from 'roughjs/bin/canvas'
 import { ToolModeEnum , ActionEnum , ElementPositionEnum ,CursorStyleEnum} from '../../../enums/draw'
 import { createElement , cursorForPosition , resizedCoordinates , drawElement , adjustmentRequired , getElementAtPosition , adjustElementCoordinates } from '../../../utils/draw'
@@ -17,7 +17,7 @@ const DrawingComponent: FC<pageProps> = ({}) => {
     const [tool , setTool] = useState<ToolModeEnum>(ToolModeEnum.line)
     const [selectedElement , setSelectedElement] = useState<SelectedDrawElement|null>(null)
     const [loaded , setLoaded] = useState(false)
-    const canvasRef = useRef<HTMLCanvasElement>(null)
+    const canvasRef = useRef< HTMLCanvasElement>(null)
     const canvasContainerRef = useRef<HTMLDivElement>(null)
 
     const textAreaRef = useRef<HTMLTextAreaElement>(null)

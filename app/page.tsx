@@ -2,6 +2,7 @@
 import { FC } from 'react'
 import DrawingComponent from '../components/page/drawing/drawing'
 // import DrawingApp from '@/components/page/drawing/drawing-ui'
+import 'dotenv/config'
 
 interface pageProps {}
 
