@@ -66,8 +66,11 @@ const DrawingComponent: FC<pageProps> = ({}) => {
                 else undo()
             }
         }
+        console.log('process.env.TEST', process.env.TEST)
+        
         window.addEventListener('keydown' , undoRedoHandler)
         return ()=> window.removeEventListener('keydown' , undoRedoHandler)
+        
     }, [ loaded ,undo ,redo])
 
 
