@@ -5,8 +5,8 @@ import type React from "react"
 import { FC , MouseEvent , type RefObject } from "react"
 
 interface CanvasProps {
-    canvasRef: RefObject<HTMLCanvasElement>
-    canvasContainerRef: RefObject<HTMLDivElement>
+    canvasRef: RefObject<HTMLCanvasElement | null> 
+    canvasContainerRef: RefObject<HTMLDivElement | null>
     handleMouseDown: (e:MouseEvent) => void
     handleMouseMove: (e:MouseEvent) => void
     handleMouseUp: (e:MouseEvent) => void

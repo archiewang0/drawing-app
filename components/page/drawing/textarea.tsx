@@ -4,7 +4,7 @@ import React , { FC , MouseEvent , FocusEvent , type RefObject } from "react"
 
 interface TextAreaProps {
     handleBlur: (e:FocusEvent)=>void
-    textAreaRef: RefObject<HTMLTextAreaElement>
+    textAreaRef: RefObject<HTMLTextAreaElement | null>;
     handleMouseMove: (e:MouseEvent) => void
     handleMouseUp: (e:MouseEvent) => void
     scale: number
