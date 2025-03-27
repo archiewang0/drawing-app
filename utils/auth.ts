@@ -14,9 +14,9 @@ declare module "next-auth" {
 export function getGoogleCredentials(): { clientId: string; clientSecret: string } {
     const clientId = process.env.AUTH_GOOGLE_ID
     const clientSecret = process.env.AUTH_GOOGLE_SECRET
-    console.log('process.env.AUTH_GOOGLE_ID: ' , process.env.AUTH_GOOGLE_ID)
-    console.log('process.env.AUTH_GOOGLE_SECRET: ' , process.env.AUTH_GOOGLE_SECRET)
-    console.log('process.env.AUTH_SECRET: ' , process.env.AUTH_SECRET)
+    // console.log('process.env.AUTH_GOOGLE_ID: ' , process.env.AUTH_GOOGLE_ID)
+    // console.log('process.env.AUTH_GOOGLE_SECRET: ' , process.env.AUTH_GOOGLE_SECRET)
+    // console.log('process.env.AUTH_SECRET: ' , process.env.AUTH_SECRET)
     if(!clientId || clientId.length === 0){
         throw new Error('Missing GOOGLE_CLIENT_ID')
     }

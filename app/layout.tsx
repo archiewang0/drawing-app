@@ -1,6 +1,7 @@
 import './globals.css'
 import { NavBar } from '@/components/layout/navbar'
 import { AuthProvider } from '@/components/layout/auth-provider'
+import { SpeedInsights } from "@vercel/speed-insights/next"
 
 export default function RootLayout({ children,}: { children: React.ReactNode}) {
     return (
@@ -15,7 +16,8 @@ export default function RootLayout({ children,}: { children: React.ReactNode}) {
                     <div className="flex flex-col min-h-screen">
                         <NavBar />
                         <main className="flex-grow">
-                                {children}
+                            {children}
+                            <SpeedInsights/>
                         </main>
                     </div>
                 </AuthProvider>
