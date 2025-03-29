@@ -15,10 +15,10 @@ export default function ProfilePage() {
         <div className=" flex justify-center items-center  h-[calc(100vh-4rem)]">
             <Image src="/drawingdog.jpeg" alt='drawing dog' width={600} height={600} />
             <div>
-                <p>Hi !!</p>
-                <p>I'm drawing dog. </p>
-                <p>Click the button to start drawing.</p>
-                <Link className="flex items-center font-bold" href="/">Drawing now!  &nbsp;  <ArrowBigRight/></Link>
+                <p>尼好 !!</p>
+                <p>我畫了一隻狗勾</p>
+                <p>現在換你了表現了。</p>
+                <Link className="flex items-center font-bold" href="/">Drawing now! <ArrowBigRight className="ml-1"/></Link>
             </div>
         </div>
     )
