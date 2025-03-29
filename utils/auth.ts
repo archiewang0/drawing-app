@@ -1,6 +1,5 @@
 import { NextAuthOptions } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
-
 declare module "next-auth" {
     interface User {
         id: string;
@@ -47,7 +46,8 @@ export const authOptions: NextAuthOptions = {
                 token,
                 trigger
             })
-    
+            
+
             return token;
         },
         async session({ session, token }) {
