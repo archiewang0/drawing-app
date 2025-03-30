@@ -13,18 +13,11 @@ export async function register() {
     // const users =  await User.find({})
 
     const userdata = new User({
-        name: 'archietest',
-        email: 'archie@email'
+        name: 'archietest3213213123',
+        email: 'archie@email121321x'
     })
-    // console.log('users: ',users)
 
     await userdata.save()
 
-    //   if (!userCollection) return { errors: { email: "Server error!" } };
-
-    // console.log('userCollection: ' , userCollection) 
-
-    // Redirect
-    // redirect("/");
     return {}
 }

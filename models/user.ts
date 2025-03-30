@@ -1,14 +1,14 @@
-import { Schema, model, models, Document } from 'mongoose';
+import { Schema, model, models, Document ,InferSchemaType } from 'mongoose';
 
-export interface IUser extends Document {
-    _id: Schema.Types.ObjectId;
-    name: string;
-    email: string;
-    createdAt: Date;
-    updatedAt: Date;
-}
+// export interface IUser {
+//     _id: Schema.Types.ObjectId;
+//     name: string;
+//     email: string;
+//     createdAt: Date;
+//     updatedAt: Date;
+// }
 
-const userSchema = new Schema<IUser>({
+const userSchema = new Schema({
     name: {
         type: String,
         required: true
@@ -21,6 +21,10 @@ const userSchema = new Schema<IUser>({
 }, {
     timestamps: true
 });
+
+export interface IUser extends InferSchemaType<typeof userSchema> {
+    _id: Schema.Types.ObjectId;
+}
 
 const User = models.User || model<IUser>('User', userSchema);
 
