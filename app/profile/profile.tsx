@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { PlusCircleIcon, User } from "lucide-react"
 import { useSession , signOut , getProviders} from "next-auth/react"
 import AddCanvas from "./add-canvas"
+import { register } from "../actions/auth"
 
 function Profile(){    
     const { data: session, status } = useSession();
@@ -18,6 +19,11 @@ function Profile(){
 
     if (!session?.user ) {
         return <></>
+    }
+
+    const onClick= async ()=>{
+        const res = await register()
+        console.log('res: ' , res)
     }
 
     const user = session.user as ExtendedUser
@@ -64,6 +70,10 @@ function Profile(){
                                         </div>
                                     </div>
                                 </div>
+
+                                <button onClick={onClick}>
+                                    查看db
+                                </button>
                             </div>
                         
 

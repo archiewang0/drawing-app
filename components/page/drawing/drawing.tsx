@@ -2,7 +2,7 @@
 import { FC, FocusEvent , MouseEvent, RefObject, useEffect , useRef, useState } from 'react'
 import { RoughCanvas } from 'roughjs/bin/canvas'
 import { ToolModeEnum , ActionEnum , ElementPositionEnum ,CursorStyleEnum} from '../../../enums/draw'
-import { createElement , cursorForPosition , resizedCoordinates , drawElement , adjustmentRequired , getElementAtPosition , adjustElementCoordinates } from '../../../utils/draw'
+import { createElement , cursorForPosition , resizedCoordinates , drawElement , adjustmentRequired , getElementAtPosition , adjustElementCoordinates } from '../../../lib/draw'
 import { useHistory } from '../../../hooks/useHistory'
 import { usePressedKeys } from '../../../hooks/usePressedKeys'
 import { Canvas } from "./canvas"
