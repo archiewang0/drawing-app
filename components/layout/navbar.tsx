@@ -1,7 +1,6 @@
 import Link from "next/link"
 import SignInButton from "./sign-in-button"
 import { PenIcon } from "lucide-react"
-PenIcon
 
 export function NavBar() {
 

@@ -16,6 +16,7 @@ interface ToolbarProps {
     onUndo: () => void
     onRedo: () => void
     onZoomIn: (data: number) => void
+    consoleElement: ()=>void
 }
 
 const StyledToggleGroup = styled(ToggleGroup, {
@@ -45,11 +46,15 @@ const StyledToggleGroupItem = styled(ToggleGroupItem, {
 })
 
 export const Toolbar:FC<ToolbarProps> =  ({
-    tool , setTool , onUndo: undo, onRedo: redo, onZoomIn: onZoom , scale
+    tool , setTool , onUndo: undo, onRedo: redo, onZoomIn: onZoom , scale , consoleElement
 }) => {
     return (
         <div className="flex items-center justify-between bg-white w-full mb-5">
             <TooltipProvider>
+                <div>
+                    <span onClick={()=>{consoleElement()}}>test</span>
+                </div>
+
                 <div className="flex items-center">
                     <StyledToggleGroup
                         type="single"

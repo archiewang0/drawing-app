@@ -1,8 +1,7 @@
 
 import { FC } from 'react'
-import DrawingComponent from '../components/page/drawing/drawing'
-// import DrawingApp from '@/components/page/drawing/drawing-ui'
-import 'dotenv/config'
+// import DrawingComponent from '../components/page/drawing/drawing'
+import { DrawingPage } from '@/components/page/drawing/drawingPage'
 
 interface pageProps {}
 
@@ -14,7 +13,7 @@ console.log('process.env.AUTH_GOOGLE_SECRET: ' , process.env.AUTH_GOOGLE_SECRET)
 
 const Page: FC<pageProps> = ({}) => {
     return  <div className="container mx-auto px-4 py-8">
-        <DrawingComponent/>
+        <DrawingPage/>
         {/* <DrawingApp/> */}
     </div>
 }

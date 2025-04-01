@@ -33,6 +33,9 @@ const DrawingComponent: FC<pageProps> = ({}) => {
     const [scale , setScale] = useState<number>(1)
     const [scaleOffset , setScaleOffset ] = useState<PositionXY>({x: 0 , y:0})
 
+    const printConsole = ()=>{
+        console.log(elements)
+    }
 
     useEffect(()=>{
         if (!canvasRef.current) return;
@@ -330,6 +333,7 @@ const DrawingComponent: FC<pageProps> = ({}) => {
         <div  className=' bg-white flex flex-wrap w-full overflow-hidden'>
 
             <Toolbar 
+                consoleElement={printConsole}
                 tool={tool}
                 setTool={setTool}
                 onUndo={undo}
