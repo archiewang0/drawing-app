@@ -29,6 +29,7 @@
     "next": "15.2.2",
     "next-auth": "^4.24.11",
     "perfect-freehand": "^1.2.2",
+    "prettier": "^3.5.3",
     "react": "^19.0.0",
     "react-color": "^2.19.3",
     "react-dom": "^19.0.0",
