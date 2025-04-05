@@ -24,8 +24,8 @@ function Profile() {
         }[]
     >([]);
     const [fetchdata, setFetchData] = useState(true);
-    const [showToast, setShowToast] = useState({
-        open: false,
+    const [showToast, setShowToast] = useState(false);
+    const [toastInfo, settoastInfo] = useState({
         title: '',
         description: '',
         delay: 0,
@@ -40,12 +40,12 @@ function Profile() {
     useEffect(() => {
         if (sessionStorage.getItem('addnewimg')) {
             sessionStorage.removeItem('addnewimg');
-            setShowToast({
-                open: true,
+            settoastInfo({
                 title: '新增成功',
                 description: '可以查看你所繪畫的圖片',
                 delay: 2000,
             });
+            setShowToast(true);
         }
     }, []);
 
@@ -221,11 +221,13 @@ function Profile() {
                                     </>
                                 )}
 
-                                {showToast.open && (
+                                {showToast && (
                                     <ToastMessage
-                                        title={showToast.title}
-                                        description={showToast.description}
-                                        delay={showToast.delay}
+                                        open={showToast}
+                                        onOpenChange={setShowToast}
+                                        title={toastInfo.title}
+                                        description={toastInfo.description}
+                                        delay={toastInfo.delay}
                                     />
                                 )}
                             </div>
@@ -247,6 +249,7 @@ function Profile() {
             </Container>
 
             <DeleteImgDialog
+                setToastinfo={settoastInfo}
                 setShowToast={setShowToast}
                 fetchCanvasImg={fetchCanvasImg}
                 id={deletImgTarget.id}

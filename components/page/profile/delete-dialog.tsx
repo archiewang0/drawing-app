@@ -8,7 +8,8 @@ import {useRouter} from 'next/navigation';
 interface DeleteImgDialogProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
-    setShowToast: (data: {open: boolean; title: string; description: string; delay: number}) => void;
+    setToastinfo: (data: {title: string; description: string; delay: number}) => void;
+    setShowToast: (open: boolean) => void;
 
     imgurl: string;
     name?: string;
@@ -17,7 +18,7 @@ interface DeleteImgDialogProps {
     fetchCanvasImg: () => void;
 }
 
-export function DeleteImgDialog({open, onOpenChange, id, fetchCanvasImg, imgurl, name, setShowToast}: DeleteImgDialogProps) {
+export function DeleteImgDialog({open, onOpenChange, id, fetchCanvasImg, imgurl, name, setShowToast, setToastinfo}: DeleteImgDialogProps) {
     const [deleteing, setDeleteing] = useState(false);
     const router = useRouter();
     return (
@@ -39,15 +40,16 @@ export function DeleteImgDialog({open, onOpenChange, id, fetchCanvasImg, imgurl,
                         onClick={async () => {
                             if (deleteing) return;
                             setDeleteing(true);
-                            await deleteimg({id});
+                            await deleteimg({id, imgUrl: imgurl, name});
                             await fetchCanvasImg();
-                            onOpenChange(false);
-                            setShowToast({
-                                open: true,
+                            setToastinfo({
                                 title: '刪除成功',
                                 description: '刪除圖片成功',
                                 delay: 2000,
                             });
+                            onOpenChange(false);
+
+                            setShowToast(true);
                         }}
                         variant="outline"
                         className=" border-red-400 text-red-400 ">

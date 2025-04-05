@@ -7,16 +7,17 @@ interface ToastProps {
     delay: number;
     title: string;
     description: string;
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
 }
 
-const ToastMessage: React.FC<ToastProps> = ({delay, title, description}) => {
-    const [open, setOpen] = React.useState(true);
+const ToastMessage: React.FC<ToastProps> = ({open, onOpenChange, delay, title, description}) => {
     const timerRef = React.useRef(0);
 
     React.useEffect(() => {
         if (open) {
             timerRef.current = window.setTimeout(() => {
-                setOpen(false);
+                onOpenChange(false);
                 window.clearTimeout(timerRef.current);
             }, delay);
         }
@@ -28,12 +29,10 @@ const ToastMessage: React.FC<ToastProps> = ({delay, title, description}) => {
             <Toast.Root
                 className="ToastRoot"
                 open={open}
-                onOpenChange={setOpen}>
-                {/* <Toast.Title className="ToastTitle">新增成功</Toast.Title> */}
+                onOpenChange={onOpenChange}>
                 <Toast.Title className="ToastTitle">{title}</Toast.Title>
 
                 <Toast.Description asChild>
-                    {/* <p className="ToastDescription">可以查看你所繪畫的圖片</p> */}
                     <p className="ToastDescription">{description}</p>
                 </Toast.Description>
 
