@@ -358,7 +358,7 @@ const DrawingComponent: FC<pageProps> = ({}) => {
                                     console.log('updateimg: ', updateimg);
                                 },
                                 'image/jpeg',
-                                0.8,
+                                0.6,
                             );
 
                             sessionStorage.setItem('addnewimg', 'true');

@@ -2,12 +2,14 @@ import * as React from 'react';
 
 import {XCircle} from 'lucide-react';
 import {Toast} from 'radix-ui';
-
+import './toast.css';
 interface ToastProps {
     delay: number;
+    title: string;
+    description: string;
 }
 
-const ToastMessage: React.FC<ToastProps> = ({delay}) => {
+const ToastMessage: React.FC<ToastProps> = ({delay, title, description}) => {
     const [open, setOpen] = React.useState(true);
     const timerRef = React.useRef(0);
 
@@ -27,10 +29,12 @@ const ToastMessage: React.FC<ToastProps> = ({delay}) => {
                 className="ToastRoot"
                 open={open}
                 onOpenChange={setOpen}>
-                <Toast.Title className="ToastTitle">新增成功</Toast.Title>
+                {/* <Toast.Title className="ToastTitle">新增成功</Toast.Title> */}
+                <Toast.Title className="ToastTitle">{title}</Toast.Title>
 
                 <Toast.Description asChild>
-                    <p className="ToastDescription">可以查看你所繪畫的圖片</p>
+                    {/* <p className="ToastDescription">可以查看你所繪畫的圖片</p> */}
+                    <p className="ToastDescription">{description}</p>
                 </Toast.Description>
 
                 <Toast.Action

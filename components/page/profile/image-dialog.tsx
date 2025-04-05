@@ -5,7 +5,7 @@ import * as Dialog from '@radix-ui/react-dialog';
 import {styled, keyframes} from '@stitches/react';
 import {ZoomIn, ZoomOut, RotateCw, X, Download} from 'lucide-react';
 import * as Skeleton from 'react-loading-skeleton';
-import ToastMessage from '@/components/ui/toast';
+import ToastMessage from '@/components/ui/toast/toast';
 import saveAs from 'file-saver';
 // import Image from 'next/image';
 
