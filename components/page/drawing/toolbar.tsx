@@ -19,32 +19,6 @@ interface ToolbarProps {
     consoleElement: () => void;
 }
 
-// const StyledToggleGroup = styled(ToggleGroup, {
-//     display: 'inline-flex',
-//     backgroundColor: 'white',
-//     borderRadius: '4px',
-//     border: '1px solid #e2e8f0',
-// });
-
-// const StyledToggleGroupItem = styled(ToggleGroupItem, {
-//     all: 'unset',
-//     backgroundColor: 'white',
-//     color: '#64748b',
-//     height: '35px',
-//     width: '35px',
-//     display: 'flex',
-//     fontSize: 15,
-//     lineHeight: 1,
-//     alignItems: 'center',
-//     justifyContent: 'center',
-//     marginLeft: 1,
-//     '&:first-child': {marginLeft: 0, borderTopLeftRadius: '3px', borderBottomLeftRadius: '3px'},
-//     '&:last-child': {borderTopRightRadius: '3px', borderBottomRightRadius: '3px'},
-//     '&:hover': {backgroundColor: '#f1f5f9'},
-//     '&[data-state=on]': {backgroundColor: '#e2e8f0', color: '#0f172a'},
-//     '&:focus': {position: 'relative', boxShadow: '0 0 0 2px #cbd5e1'},
-// });
-
 const StyledToggleGroupItem = ({className, ...props}: ComponentPropsWithoutRef<typeof ToggleGroupItem>) => {
     return (
         <ToggleGroupItem
@@ -58,15 +32,6 @@ export const Toolbar: FC<ToolbarProps> = ({tool, setTool, onUndo: undo, onRedo: 
     return (
         <div className="flex items-center justify-between bg-white w-full mb-5">
             <TooltipProvider>
-                {/* <div>
-                    <span
-                        onClick={() => {
-                            consoleElement();
-                        }}>
-                        test
-                    </span>
-                </div> */}
-
                 <div className="flex items-center">
                     <ToggleGroup
                         className=" inline-flex bg-white rounded-md border border-[#e2e8f0]"
@@ -78,6 +43,7 @@ export const Toolbar: FC<ToolbarProps> = ({tool, setTool, onUndo: undo, onRedo: 
                         <Tooltip>
                             <TooltipTrigger asChild>
                                 <StyledToggleGroupItem
+                                    className={tool === ToolModeEnum.pencil ? 'bg-gray-50' : ''}
                                     value={ToolModeEnum.pencil}
                                     aria-label="Pencil tool">
                                     <Pencil size={18} />
@@ -91,6 +57,7 @@ export const Toolbar: FC<ToolbarProps> = ({tool, setTool, onUndo: undo, onRedo: 
                         <Tooltip>
                             <TooltipTrigger asChild>
                                 <StyledToggleGroupItem
+                                    className={tool === ToolModeEnum.rectangle ? 'bg-gray-50' : ''}
                                     value={ToolModeEnum.rectangle}
                                     aria-label="Rectangle tool">
                                     <Square size={18} />
@@ -104,6 +71,7 @@ export const Toolbar: FC<ToolbarProps> = ({tool, setTool, onUndo: undo, onRedo: 
                         <Tooltip>
                             <TooltipTrigger asChild>
                                 <StyledToggleGroupItem
+                                    className={tool === ToolModeEnum.line ? 'bg-gray-50' : ''}
                                     value={ToolModeEnum.line}
                                     aria-label="Line tool">
                                     <LineIcon size={18} />
@@ -117,6 +85,7 @@ export const Toolbar: FC<ToolbarProps> = ({tool, setTool, onUndo: undo, onRedo: 
                         <Tooltip>
                             <TooltipTrigger asChild>
                                 <StyledToggleGroupItem
+                                    className={tool === ToolModeEnum.text ? 'bg-gray-50' : ''}
                                     value={ToolModeEnum.text}
                                     aria-label="Text tool">
                                     <Type size={18} />
@@ -130,6 +99,7 @@ export const Toolbar: FC<ToolbarProps> = ({tool, setTool, onUndo: undo, onRedo: 
                         <Tooltip>
                             <TooltipTrigger asChild>
                                 <StyledToggleGroupItem
+                                    className={tool === ToolModeEnum.selector ? 'bg-gray-50' : ''}
                                     value={ToolModeEnum.selector}
                                     aria-label="Selection tool">
                                     <Move size={18} />

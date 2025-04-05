@@ -8,15 +8,20 @@ import {usePressedKeys} from '../../../hooks/usePressedKeys';
 import {Canvas} from './canvas';
 import {Toolbar} from './toolbar';
 import {TextArea} from './textarea';
-import {Button, buttonVariants} from '@/components/ui/button';
-import {register} from '@/app/actions/auth';
+import {Button} from '@/components/ui/button';
+import {register} from '@/app/actions/register';
+import {finduser} from '@/app/actions/finduser';
 import {useSession} from 'next-auth/react';
 import Skeleton from 'react-loading-skeleton';
 import Loading from '@/components/ui/loading';
+import {uploadImageFileToStorage} from '@/app/actions/uploadImgStorage';
+import {useRouter} from 'next/navigation';
+import {uploadImg} from '@/app/actions/uploadimg';
 
 interface pageProps {}
 
 const DrawingComponent: FC<pageProps> = ({}) => {
+    const [btnfetch, setBtnfetch] = useState(false);
     const {data: session, status} = useSession();
     const [canvasTitle, setCanvasTitle] = useState<string>('');
 
@@ -41,6 +46,8 @@ const DrawingComponent: FC<pageProps> = ({}) => {
     const [scale, setScale] = useState<number>(1);
     const [scaleOffset, setScaleOffset] = useState<PositionXY>({x: 0, y: 0});
 
+    const router = useRouter();
+
     const printConsole = () => {
         console.log();
         console.log(elements);
@@ -51,6 +58,9 @@ const DrawingComponent: FC<pageProps> = ({}) => {
         const ctx = (canvasRef?.current as HTMLCanvasElement).getContext('2d');
         if (!ctx) return;
         ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+        ctx.fillStyle = 'white';
+        ctx.fillRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+        ctx.fillStyle = 'black';
 
         const scaledWidth = canvasRef.current.width * scale;
         const scaledHeight = canvasRef.current.height * scale;
@@ -87,8 +97,6 @@ const DrawingComponent: FC<pageProps> = ({}) => {
         const canvas = canvasRef.current as HTMLCanvasElement;
         if (!canvasRef.current) return;
         const panOrZoomFunction = (e: WheelEvent) => {
-            console.log('test ', pressedKeys);
-
             if (pressedKeys.has('Meta') || pressedKeys.has('Control')) {
                 onZoom(e.deltaY * -0.01);
             } else {
@@ -330,20 +338,33 @@ const DrawingComponent: FC<pageProps> = ({}) => {
                             setCanvasTitle(e.target.value);
                         }}
                     />
-                    {/* <h1 className=" mr-5 font-bold text-2xl">未命名</h1> */}
                     <Button
-                        onClick={() => {
-                            console.log('elements: ', elements);
-                            console.log('title canvas: ', canvasTitle);
-                            register({
-                                userId: session.user.id,
-                                name: session.user.name!,
-                                email: session.user.email as string,
-                                canvas: [],
-                            });
-                        }}
-                        className={buttonVariants({variant: 'outline'})}>
-                        Save Canvas
+                        disabled={btnfetch || elements.length === 0}
+                        variant={'outline'}
+                        onClick={async () => {
+                            if (btnfetch) return;
+                            setBtnfetch(true);
+                            await canvasRef.current?.toBlob(
+                                async (d) => {
+                                    if (d) console.log('blob data: ', d);
+                                    const updateimg = await uploadImg({
+                                        userId: session.user.id,
+                                        filename: canvasTitle,
+                                        file: d,
+                                        email: session.user.email as string,
+                                        name: session.user.name as string,
+                                    });
+
+                                    console.log('updateimg: ', updateimg);
+                                },
+                                'image/jpeg',
+                                0.8,
+                            );
+
+                            sessionStorage.setItem('addnewimg', 'true');
+                            router.push('/profile');
+                        }}>
+                        儲存畫布快照
                     </Button>
                 </div>
             )}

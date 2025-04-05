@@ -2,14 +2,58 @@
 import {Avatar, AvatarFallback, AvatarImage} from '@/components/ui/avatar';
 import {Button} from '@/components/ui/button';
 import {Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle} from '@/components/ui/card';
-import {User} from 'lucide-react';
+import {User, Settings, Trash} from 'lucide-react';
 import {useSession, signOut} from 'next-auth/react';
 import AddCanvas from './add-canvas';
 import Skeleton from 'react-loading-skeleton';
 import Container from './container';
+import {finduser} from '../actions/finduser';
+import {useEffect, useState} from 'react';
+import {ICanvas} from '@/models/user';
+import ToastMessage from '@/components/ui/toast';
+import Link from 'next/link';
+import {ImageZoomDialog} from '@/components/page/profile/image-dialog';
+import {cn} from '@/lib/utils';
+import {Popover, PopoverTrigger, PopoverContent} from '@/components/ui/popover';
 
 function Profile() {
     const {data: session, status} = useSession();
+    const [canvasImg, setCanvasImg] = useState<
+        {
+            _id: string;
+            name: string;
+            imageUrl: string;
+            createdAt: string;
+        }[]
+    >([]);
+    const [showToast, setShowToast] = useState(false);
+
+    useEffect(() => {
+        if (sessionStorage.getItem('addnewimg')) {
+            sessionStorage.removeItem('addnewimg');
+            setShowToast(true);
+        }
+    }, []);
+
+    useEffect(() => {
+        const fetchCanvasImg = async () => {
+            if (status !== 'loading' && session?.user) {
+                const user = await finduser({userId: session.user.id});
+                if (!user) return;
+                setCanvasImg(
+                    user.canvasImages?.map((image) => ({
+                        _id: image._id,
+                        name: image.name || '',
+                        imageUrl: image.imageUrl,
+                        createdAt: image.createdAt || '',
+                    })) || [],
+                );
+            }
+        };
+        fetchCanvasImg();
+        // console.log('run');
+    }, [status, session?.user]);
+
     if (status === 'loading') {
         return (
             <Container>
@@ -88,18 +132,34 @@ function Profile() {
 
                 <CardContent className="grid gap-4">
                     <div>
-                        <div className="text-xl font-medium">My Canvas </div>
+                        <div className="text-xl font-medium">圖片快照</div>
 
                         <div className=" flex flex-wrap gap-4 mt-6">
                             <AddCanvas />
-                            <div className=" inline-flex flex-wrap justify-center items-start overflow-hidden border w-1/6 h-52 border-gray-200 shadow-md rounded-md">
-                                <div className=" w-full h-2/3 bg-gray-100"></div>
-                                <div className=" w-full p-2">
-                                    <span className=" font-light">title</span>
 
-                                    <div className=" text-xs text-black/30">updated at: 2024/12/12</div>
+                            {canvasImg.map((image) => (
+                                <div
+                                    key={image._id}
+                                    className=" inline-flex flex-wrap justify-center items-start overflow-hidden border w-1/6 h-52 border-gray-200 shadow-md rounded-md">
+                                    <div className=" w-full h-2/3">
+                                        <ImageZoomDialog
+                                            className=" h-full"
+                                            imageName={image.name}
+                                            src={image.imageUrl}
+                                            alt={image.name + '.img'}
+                                            width={600}
+                                            height={300}
+                                        />
+                                    </div>
+                                    <div className=" w-full p-2 relative">
+                                        <span className=" font-light">{image.name || '未命名'}</span>
+
+                                        <div className=" text-xs text-black/30">updated at: {new Date(image.createdAt).toLocaleString()}</div>
+                                    </div>
                                 </div>
-                            </div>
+                            ))}
+
+                            {showToast && <ToastMessage delay={2000} />}
                         </div>
                     </div>
                 </CardContent>
