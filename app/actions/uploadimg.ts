@@ -1,28 +1,16 @@
 'use server';
-import {uploadImageFileToStorage} from './uploadImgStorage';
+import {uploadToImgur} from './uploadImgImgur';
 import {finduser} from './finduser';
 import {register} from './register';
 import User from '@/models/user';
 // const storage = getStorage();
-export async function uploadImg({
-    userId,
-    filename,
-    file,
-    name,
-    email,
-}: {
-    userId: string;
-    filename: string;
-    file: Blob | null;
-
-    name: string;
-    email: string;
-}) {
+export async function uploadImg({userId, filename, imgBase64url, name, email}: {userId: string; filename: string; imgBase64url: string; name: string; email: string}) {
     try {
-        const storageRes = await uploadImageFileToStorage(filename, file);
-        if (storageRes.code !== 200) throw new Error('上傳檔案時發生錯誤：' + storageRes.message);
+        const storageRes = await uploadToImgur(imgBase64url);
+        console.log('storageRes: ', storageRes);
+        if (storageRes.status !== 200) throw new Error('上傳檔案時發生錯誤：' + storageRes.status);
 
-        const uploadurl = storageRes.data!;
+        const uploadurl = storageRes.data.link;
 
         const user = await finduser({userId: userId});
 

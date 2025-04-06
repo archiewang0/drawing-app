@@ -9,12 +9,8 @@ import {Canvas} from './canvas';
 import {Toolbar} from './toolbar';
 import {TextArea} from './textarea';
 import {Button} from '@/components/ui/button';
-import {register} from '@/app/actions/register';
-import {finduser} from '@/app/actions/finduser';
 import {useSession} from 'next-auth/react';
-import Skeleton from 'react-loading-skeleton';
 import Loading from '@/components/ui/loading';
-import {uploadImageFileToStorage} from '@/app/actions/uploadImgStorage';
 import {useRouter} from 'next/navigation';
 import {uploadImg} from '@/app/actions/uploadimg';
 
@@ -344,22 +340,20 @@ const DrawingComponent: FC<pageProps> = ({}) => {
                         onClick={async () => {
                             if (btnfetch) return;
                             setBtnfetch(true);
-                            await canvasRef.current?.toBlob(
-                                async (d) => {
-                                    if (d) console.log('blob data: ', d);
-                                    const updateimg = await uploadImg({
-                                        userId: session.user.id,
-                                        filename: canvasTitle,
-                                        file: d,
-                                        email: session.user.email as string,
-                                        name: session.user.name as string,
-                                    });
+                            const res = await uploadImg({
+                                userId: session.user.id,
+                                filename: canvasTitle,
+                                imgBase64url: canvasRef.current?.toDataURL().split('base64,')[1] as string,
+                                email: session.user.email as string,
+                                name: session.user.name as string,
+                            });
 
-                                    console.log('updateimg: ', updateimg);
-                                },
-                                'image/jpeg',
-                                0.6,
-                            );
+                            console.log('檢查 res: ', res);
+                            if (res.code !== 200) {
+                                alert('發生錯誤請再試一次!');
+                                setBtnfetch(false);
+                                return;
+                            }
 
                             sessionStorage.setItem('addnewimg', 'true');
                             router.push('/profile');

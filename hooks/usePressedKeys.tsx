@@ -1,31 +1,28 @@
-import React ,{ useState , useEffect  } from "react";
-
+import React, {useState, useEffect} from 'react';
 
 export const usePressedKeys = () => {
     const [pressedKeys, setPressedKeys] = useState(new Set());
 
     useEffect(() => {
-        const handleKeyDown = (e:KeyboardEvent) => {
-            setPressedKeys(prevKeys => new Set(prevKeys).add(e.key));
-            console.log(pressedKeys)
+        const handleKeyDown = (e: KeyboardEvent) => {
+            setPressedKeys((prevKeys) => new Set(prevKeys).add(e.key));
         };
 
         const handleKeyUp = (e: KeyboardEvent) => {
-            setPressedKeys(prevKeys => {
+            setPressedKeys((prevKeys) => {
                 const updatedKeys = new Set(prevKeys);
                 updatedKeys.delete(e.key);
                 return updatedKeys;
             });
         };
 
-        window.addEventListener("keydown", handleKeyDown);
-        window.addEventListener("keyup", handleKeyUp);
+        window.addEventListener('keydown', handleKeyDown);
+        window.addEventListener('keyup', handleKeyUp);
         return () => {
-            window.removeEventListener("keydown", handleKeyDown);
-            window.removeEventListener("keyup", handleKeyUp);
+            window.removeEventListener('keydown', handleKeyDown);
+            window.removeEventListener('keyup', handleKeyUp);
         };
     }, []);
 
     return pressedKeys;
 };
-  

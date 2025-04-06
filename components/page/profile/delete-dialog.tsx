@@ -47,8 +47,8 @@ export function DeleteImgDialog({open, onOpenChange, id, fetchCanvasImg, imgurl,
                                 description: '刪除圖片成功',
                                 delay: 2000,
                             });
+                            setDeleteing(false);
                             onOpenChange(false);
-
                             setShowToast(true);
                         }}
                         variant="outline"
